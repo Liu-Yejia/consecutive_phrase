@@ -1,0 +1,67 @@
+Analytic_Jumanpp<-function(input, merge=TRUE){
+  input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+  #input<-chartr(old="0123456789", new="０１２３４５６７８９", input)
+  library(stringr)
+  library(dplyr)
+  fun_merge<-function(x=completed, pos="名詞"){
+    #x<-completed;pos="名詞"
+    if(is.null(nrow(x))){
+      return(x)
+      stop(simpleError(message="不满足条件，跳出函数进程。"))
+      #q()
+    }
+    summary<-rle(x[,4])
+    len<-summary$lengths
+    val<-summary$values
+    end<-cumsum(len)
+    start<-end-len+1
+    matched<-which(val==pos&len>=2)
+    num_matched<-length(matched)
+    if(num_matched>=1){
+      need_to_be_removed<-NULL
+      res<-list()
+      for(i in 1:num_matched){
+        res[[i]]<-start[matched[i]]:end[matched[i]]
+      }
+      for(i in 1:num_matched){
+        elements<-res[[i]]
+        num_elements<-length(elements)
+        elements_end<-elements[num_elements]
+        first_3<-NULL
+        for(j in 1:3){
+          first_3[j]<-str_c(x[elements,j], collapse="")
+        }
+        mergerd<-c(first_3, x[elements_end,-c(1:3)])
+        mergerd[5]<-paste0("複合", pos)
+        x[elements_end,]<-mergerd
+        need_to_be_removed<-c(need_to_be_removed, elements[-length(elements)])
+      }
+      res<-x[-need_to_be_removed,]
+      return(res)
+    }else{
+      return(x)
+    }
+  }
+  command<-paste("echo", input, "| jumanpp —-force-single-path")
+  completed<-system(command, intern=TRUE) %>%
+    str_subset("^(?!EOS)") %>%
+    str_split_fixed(pattern=" ", n=16)
+  #colnames<-c("表層形", "読み", "見出し語", "品詞大分類", "品詞大分類ID", "品詞細分類", "品詞細分類ID", "活用型",
+  #            "活用型ID", "活用形", "活用形ID", "意味情報", "ドメイン", "余剰A", "余剰B")
+  #c1<-completed
+  completed<-completed[,-c(5, 7, 9, 11)]
+  completed[completed=="NIL"]<-""
+  completed[completed=="*"]<-""
+  completed[completed=="未定義語"]<-"名詞"
+  if( is.null(nrow(completed))==FALSE ){
+    need_to_be_removed<-which(completed[,1]=="@")
+    if(length(need_to_be_removed)!=0)completed<-completed[-need_to_be_removed,]
+    if(is.null(nrow(completed)))completed<-str_replace_all(completed, "\"", "")
+    else completed[,1:12]<-str_replace_all(completed[,1:12], pattern="\"", replacement="")
+    if(merge==TRUE) return(fun_merge())
+    else return(completed)
+  }else{
+    completed<-str_replace_all(completed, "\"", "")
+    return(completed)
+  }
+}
