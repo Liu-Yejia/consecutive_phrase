@@ -1,0 +1,34 @@
+fun_jumanpp_R<-function(input, M=TRUE, prefix_mask=TRUE, mode="XVI"){
+  #输入为被压缩为一个元素的字符串，输出用Juman++进行形态素解析的结果（矩阵），default为进行连续名词合并。
+  #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
+  #然后使用Juman++对每个短句进行形态素解析，最后按照“一个（无句读点）短句+原文中后接句读点”的方式叠加等长度向量作为结果输出
+  if(1){
+    input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+    Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
+    Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+    Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+    len_sentences<-length(Non_Punctuation_Marks)
+    Warehouse<-list()
+    for(i in 1:len_sentences){
+      Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=0)
+      cat(i, "\n")
+    }
+    #Final_Result<-rbind(Warehouse[[1]], Analyzed_Results_for_Punctuation_Marks[1,])
+    Final_Result<-Warehouse[[1]]
+    if(length(Warehouse)>=2){
+      for(i in 2:len_sentences){
+        #Final_Result<-rbind(Final_Result, Warehouse[[i]], Analyzed_Results_for_Punctuation_Marks[i,])
+        Final_Result<-rbind(Final_Result, Warehouse[[i]])
+      }
+    }
+  }
+  prefix_morphemes<-which(Final_Result[, 4]=="接頭辞")
+  if(length(prefix_morphemes)!=0 & prefix_mask==TRUE){
+    Final_Result<-Final_Result[-prefix_morphemes,]
+  }
+  Final_Result[,1:16]<-str_replace_all(Final_Result[,1:16], pattern="\"", replacement="")
+  if(mode=="XII"){
+    Final_Result<-Final_Result[,-c(5, 7, 9, 11)]
+  }
+  return(Final_Result)
+}
