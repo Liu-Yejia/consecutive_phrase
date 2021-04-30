@@ -1,0 +1,53 @@
+fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自制函数fun_MeCab的输出（10列矩阵）
+  x<-which(material[,2]=="動詞")
+  objects_res<-material[x,]
+  num_objects<-length(x)
+  #生成用来存储结果的矩阵
+  #由于MeCab词素解析结果的精度存在不小的问题，此自制函数将输出矩阵由3个减为2个，略去“态”矩阵。
+  if(1){
+    Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)#活用形矩阵
+      colnames(Conjugates_Matrix)<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
+      rownames(Conjugates_Matrix)<-objects_res[,8]
+    #由于MeCab的解析结果
+    if(0){
+      Voices_Matrix<-matrix(0, nrow=num_objects, ncol=7)#态矩阵
+        colnames(Voices_Matrix)<-c("能動態", "可能態", "意志態", "使役態", "受動態・自発態・尊敬態", "使役受動態", "交互態")
+        rownames(Voices_Matrix)<-objects_res[,8]
+    }
+     CVS_Matrix<-matrix(0, nrow=num_objects, ncol=4)
+        colnames(CVS_Matrix)<-c("子音動詞", "母音動詞", "サ行変格活用動詞", "カ行変格活用動詞")
+        rownames(CVS_Matrix)<-object_res[,8]
+  }
+  #填充<活用形>矩阵
+  if(1){
+    Conjugates_Matrix[which(objects_res[,7]=="未然ヌ接続"), 1]<-1
+    Conjugates_Matrix[which(str_detect(objects_res[,7], "^未然.+$")), 2]<-1
+    Conjugates_Matrix[which(objects_res[,7]=="連用タ接続"), 3]<-1
+    if(1){
+      basic<-which(objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
+      basic_num<-x[basic]#在全体词素中的序列号
+      series_end_form<-basic[sort(union(which(str_detect(material[basic_num+1, 2], "^(記号|助詞)$")), which(material[basic_num+1, 4]=="助動詞語幹"))))]
+      series_attributive<-setdiff(basic, series_end_form)
+    }
+    Conjugates_Matrix[series_attributive, 4]<-1
+    Conjugates_Matrix[series_end_form, 5]<-1
+    Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
+    Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1 
+  }
+  #填充<子母サカ>矩阵
+  if(1){
+    CVS_Matrix[str_detect(objects_res[,6], "^一段.*$"), 1]<-1
+    CVS_Matrix[str_detect(objects_res[,6], "^五段.*$"), 2]<-1
+    CVS_Matrix[str_detect(objects_res[,6], "^サ変.*$"), 3]<-1
+    CVS_Matrix[str_detect(objects_res[,6], "^カ変.*$"), 4]<-1
+  }
+  list(匹配序列号=x, 活用形=Conjugates_Matrix, 子母サカ=CVS_Matrix)
+}
+#形容詞に関するコンパクトな活用形検知関数（21/4/8）
+fun_honyorara<-function(material, mode="MeCab"){#唯一的参数material为自制函数Analytic_MeCab或fun_Jumanpp_improved(?)的解析结果，即矩阵对象。本函数希望达成的目标为定位其中的"形容词"所在行的行编号，并检测对应形容词词素的活用形式。デフォ模式为MeCab
+  #备注：函数名称为暂时的。
+  if(mode=="MeCab"){
+    #遵循之前写的自制函数的规矩，先为口语体形容词和文语体定制两个空矩阵。
+    #口语体形容词诸活用形的矩阵  
+  }
+}
