@@ -1,4 +1,4 @@
-fun_jumanpp_R<-function(input, M=TRUE, prefix_mask=TRUE, mode="XVI"){
+fun_jumanpp_R<-function(input, M=TRUE, mode="XVI"){
   #输入为被压缩为一个元素的字符串，输出用Juman++进行形态素解析的结果（矩阵），default为进行连续名词合并。
   #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
   #然后使用Juman++对每个短句进行形态素解析，最后按照“一个（无句读点）短句+原文中后接句读点”的方式叠加等长度向量作为结果输出
@@ -22,11 +22,18 @@ fun_jumanpp_R<-function(input, M=TRUE, prefix_mask=TRUE, mode="XVI"){
       }
     }
   }
-  prefix_morphemes<-which(Final_Result[, 4]=="接頭辞")
-  if(length(prefix_morphemes)!=0 & prefix_mask==TRUE){
-    Final_Result<-Final_Result[-prefix_morphemes,]
+  if(0){
+    prefix_morphemes<-which(Final_Result[, 4]=="接頭辞")
+    if(length(prefix_morphemes)!=0 & prefix_mask==TRUE){
+      Final_Result<-Final_Result[-prefix_morphemes,]
+    }  
   }
   Final_Result[,1:16]<-str_replace_all(Final_Result[,1:16], pattern="\"", replacement="")
+  Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J")
+  Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J", target="Suf")
+  #将“形容動詞”标记出来
+  形容動詞位置<-which(Final_Result[, 4]=="形容詞"&Final_Result[, 8]=="ナ形容詞")
+  Final_Result[形容動詞位置, 4]<-"形容動詞"
   if(mode=="XII"){
     Final_Result<-Final_Result[,-c(5, 7, 9, 11)]
   }
