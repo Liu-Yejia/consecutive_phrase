@@ -1,0 +1,173 @@
+Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
+  library(stringr);library(dplyr)
+  #自制函数群
+  #----
+  #对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
+  #若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
+  fun_glue<-function(x,direction=1,sep="//"){
+    if(is.null(dim(x))){
+      len<-length(x)
+      total<-x[1]
+      for(i in 2:len){
+        total<-paste(total,x[i],sep=sep)
+      }
+    }else{
+      dimen<-switch(direction,
+                    "1"=ncol(x),
+                    "2"=nrow(x))
+      if(direction==1){
+        total<-x[,1]
+        for(i in 2:dimen){
+          total<-str_c(total, x[,i], sep=sep)
+        }
+      }else{
+        total<-x[1,]
+        for(i in 2:dimen){
+          total<-str_c(total, x[i,], sep=sep)
+        }
+      }
+    }
+    return(total)
+  }
+  #自定义函数（fun_Continuum_Searcher），用来定位所给的其中元素为序列号的向量中，连续的元素块。
+  #输出为矩阵，其列数为2，第1列为各个连续的元素块的起始序列号，第2列为终止序列号；行数为连续元素块的个数。
+  fun_Continuum_Searcher<-function(x){
+    dif<-x[-1]-x[-length(x)]
+    l<-rle(dif)$l
+    v<-rle(dif)$v
+    end_pos<-cumsum(l)
+    start_pos<-end_pos-l+1
+    res<-cbind(x[start_pos[which(v==1)]], x[end_pos[which(v==1)]+1])
+    if(is.null(nrow(res))!=TRUE&nrow(res)!=0){
+      colnames(res)<-c("Start", "End")
+      rownames(res)<-paste0("No.", 1:nrow(res))
+      return(res)
+    }else{
+      return(0)
+    }
+  }
+  #检测所给向量中所有元素是否相同
+  fun_identical_test<-function(x){
+    len<-length(x)
+    for(i in 2:len){
+      if(x[1]!=x[i]){
+        return(FALSE)
+        #q()
+        stop(simpleError(message="不满足条件，跳出函数进程。"))
+      }
+    }
+    return(TRUE)
+  }
+  fun_merge<-function(x, pos="名詞"){
+    #x<-completed_new;pos="名詞"
+    if(is.null(nrow(x))==TRUE){
+      return(x)
+      #q()
+      stop(simpleError(message="不满足条件，跳出函数进程。"))
+    }
+    summary<-rle(x[,4])
+    len<-summary$lengths
+    val<-summary$values
+    end<-cumsum(len)
+    start<-end-len+1
+    matched<-which(val==pos&len>=2)
+    num_matched<-length(matched)
+    if(num_matched>=1){
+      need_to_be_removed<-NULL
+      res<-list()
+      for(i in 1:num_matched){
+        res[[i]]<-start[matched[i]]:end[matched[i]]
+      }
+      for(i in 1:num_matched){
+        elements<-res[[i]]
+        num_elements<-length(elements)
+        elements_end<-elements[num_elements]
+        first_3<-NULL
+        for(j in 1:3){
+          first_3[j]<-str_c(x[elements,j], collapse="")
+        }
+        mergerd<-c(first_3, x[elements_end,-c(1:3)])
+        mergerd[5]<-paste0("複合", pos)
+        x[elements_end,]<-mergerd
+        need_to_be_removed<-c(need_to_be_removed, elements[-length(elements)])
+      }
+      res<-x[-need_to_be_removed,]
+      return(res)
+    }else{
+      return(x)
+    }
+  }
+  ##----
+  input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+  command<-paste("echo", input, "| jumanpp")
+  completed<-system(command, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_split_fixed(pattern=" ", n=16)
+  at_mark<-which(str_detect(completed[,1], "@"))
+  if(length(at_mark)!=0){
+    at_mark_verb<-at_mark[str_detect(completed[at_mark,5], "動詞")]
+    if(length(at_mark_verb)!=0){
+      Series_Numbers_of_Main_Definition_Line_for_Verbs_have_at_marks<-at_mark_verb[which(completed[at_mark_verb-1, 1]!="@")]#动词的第1个@行
+      if(length(at_mark_verb)>=2){
+        Multi_Interpretations_Verb<-fun_Continuum_Searcher(at_mark_verb)#寻找拥有3个及以上定义行（及2个以上“@”行）的动词，之后将其称为定义行（元素）块，输出每一个定义行块的起始行与终止行的行号码。
+        num_Continua<-nrow(Multi_Interpretations_Verb)#定义行块的数量。
+        if(is.null(num_Continua)!=TRUE){
+          #压缩：对于有3个以上定义的动词，将其第2个之后的定义行进行压缩：多行并为1行
+          for(i in 1:num_Continua){#对于每一个定义行块
+            #1，截取各定义行块的形态素解析的结果，但是不包含第1定义行（即第1元素不为“@”的行）
+            temp_Continuum<-completed[(Multi_Interpretations_Verb[i,1]:Multi_Interpretations_Verb[i,2]),]
+            discord<-which(apply(temp_Continuum, 2, fun_identical_test)!=TRUE)#比较当前定义行块中各行的对应位置，定位不一致的元素的位置。
+            #用黏合对应位置上独特（unique）元素的方式，压缩各定义行到一行，替代第1“@”定义行。将其余定义行中的所有元素用“”替代
+            Multi_Interpretations_Verb[i,1]#23
+            completed[Multi_Interpretations_Verb[i,1], discord]<-ifelse(length(discord)>1, fun_glue(apply(temp_Continuum[,discord], 2, unique), direction=2), fun_glue(x=temp_Continuum[,discord]))
+            completed[((Multi_Interpretations_Verb[i,1]+1):Multi_Interpretations_Verb[i,2]),]<-rep("", 16)
+          }
+        }
+      }
+      #对于拥有多行定义的动词形态素结果，将其中的主行与压缩后的副行进行再压缩（即：将不一致的元素进行粘合）
+      for(i in Series_Numbers_of_Main_Definition_Line_for_Verbs_have_at_marks){
+        alternative<-append(completed[i,-1], "")
+        adhered<-rbind(completed[i-1,], alternative)
+        discord<-which(apply(adhered, 2, fun_identical_test)!=TRUE)
+        #completed[i-1, discord]<-paste0(completed[i-1, discord], " // ", alternative[discord])
+        #completed[i-1, discord]<-fun_glue(apply(adhered[,discord], 2, unique), direction=2)
+        completed[i-1, discord]<-ifelse(length(discord)>1, fun_glue(apply(adhered[,discord], 2, unique), direction=2), fun_glue(x=adhered[,discord]))
+        completed[i, ]<-rep("", 16)#将动词副行用“”填充
+      }
+    }
+    at_mark_others<-setdiff(at_mark, at_mark_verb)#不属于动词，且拥有多行定义的形态素的，第2定义行及以下的行号码。
+    completed[at_mark_others,]<-""#删除非动词形态素的候补定义行
+    need_delete<-which(completed[,1]=="")
+    if(length(need_delete)!=0){
+      completed<-completed[-need_delete,]
+    }else{
+      completed<-completed
+    }
+  }
+  completed[completed=="NIL"]<-""
+  completed[completed=="*"]<-""
+  completed[completed=="未定義語"]<-"名詞"
+  nr<-nrow(completed)
+  if(is.null(nr)){
+    completed<-completed%>%str_replace_all("\"", "")%>%str_replace_all("(^ // )", "")
+    if(mode){
+      completed<-completed[-c(5, 7, 9, 11)]
+    }
+  }else{
+    if(nr>=2){
+      completed[, 1:16]<-completed[, 1:16]%>%str_replace_all("\"", "")%>%str_replace_all("(^ // )", "")
+      if(mode){
+        completed<-completed[, -c(5, 7, 9, 11)]
+      }
+    }else{
+      completed<-completed%>%str_replace_all("\"", "")%>%str_replace_all("(^ // )", "")
+      if(mode){
+        completed<-completed[-c(5, 7, 9, 11)]
+      }
+    }
+  }
+  if(merge==TRUE){
+    final_res<-fun_merge(x=completed)
+  }else{
+    final_res<-completed
+  }
+  return(final_res)
+}
