@@ -3,7 +3,7 @@ fun_jumanpp_R<-function(input, M=TRUE, prefix_mask=TRUE, mode="XVI"){
   #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
   #然后使用Juman++对每个短句进行形态素解析，最后按照“一个（无句读点）短句+原文中后接句读点”的方式叠加等长度向量作为结果输出
   if(1){
-    input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+    #input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
     Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
     Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
     Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
