@@ -1,0 +1,269 @@
+Adjective_Conjugation<-function(x){#xはMeCabの解析結果（形態素数×10列）
+  #自作関数
+  if(1){
+    #输入为Juman++或MeCab的形态素解析结果，将其中的“接头辞/词”或“接尾词”形态素与其后方（前方）的名词体言连结成1个形态素。
+    fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
+      #----
+      fun_Trivial_Prefix<-function(x, y){
+        library(stringr)
+        #本函数用来适切地将“接头辞”行和后接的“名词”行合并为1行
+        #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+        #x为“接头辞”行，y为后接的“名词”行
+        Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+        Res<-rep("", 15)#最终输出的结果
+        Simple_Combine<-c(1:3, 14, 15)#简单结合
+        Keep_the_Latter<-c(4:11)#仅保留后者
+        Padding_Combine<-13#中间插入自定义分隔符后结合
+        Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+        Res[Keep_the_Latter]<-Ore[2,Keep_the_Latter]
+        Res[Padding_Combine]<-fun_glue(Ore[,Padding_Combine], direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+        #for Tricky One: 12
+        if(1){
+          Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+          Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+          Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+        }
+        return(Res)
+      }
+      fun_Trivial_Suffix<-function(x, y){
+        library(stringr)
+        #本函数用来适切地将“名词”行和后接的“接尾词”行合并为1行
+        #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+        #x为“名词”行，y为后接的“接尾词”行
+        Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+        Res<-rep("", 15)#最终输出的结果
+        Simple_Combine<-c(1:3, 14, 15)#简单结合
+        Keep_the_Latter<-c(4:11)#仅保留前者
+        Padding_Combine<-13#中间插入自定义分隔符后结合
+        Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+        Res[Keep_the_Latter]<-Ore[1,Keep_the_Latter]
+        Res[Padding_Combine]<-Ore[,Padding_Combine]%>%fun_glue(direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+        #for Tricky One: 12
+        if(1){
+          Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+          Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+          #Res[12]<-fun_InVec_adhere(vec=c("代表表記:", Chinese_Characters, "/", Hiragana), sep="")
+          Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+        }
+        return(Res)
+      }
+      #----
+      #x是已经过名词合并的MeCab或Juman++的形态素解析结果；参数mode用来指定输入的形态素结果是来自MeCab或是Juman++。
+      #参数target用来指定和“名词”行合并的是“接头辞”还是“接尾辞”（前者为"Pre"，后者为"Suf"）
+      if(target=="Pre"){
+        if(mode=="M"){
+          a<-which(x[,2]=="接頭詞")#被判定为“接头辞”的形态素的序列号
+          Prefix_lines<-a[which(x[a+1,2]=="名詞")]#“接头辞”形态素中，后接“名词”形态素的序列号
+          Noun_lines<-Prefix_lines+1
+          len<-length(Prefix_lines)#匹配成功的个数
+          if(len!=0){
+            for(i in 1:len){
+              Current_PrefixLine<-x[Prefix_lines[i],]#现在的“接头辞”行
+              Current_NounLine<-x[Noun_lines[i],]#现在的“名词”行
+              Fused<-paste0(Current_PrefixLine, Current_NounLine)#把“接头辞”行与后续的“名词”行的对应元素粘起来
+              Fused[c(2,3)]<-Current_NounLine[c(2,3)]#将其中第2元素（品词大分类），第3元素（品词小分类）替换为“名词”行的对应元素
+              x[Noun_lines[i],]<-Fused
+            }
+            new_x<-x[-Prefix_lines,]
+          }else{
+            new_x<-x
+          }
+        }else 
+          if(mode=="J"){
+            b<-which(x[,4]=="接頭辞")
+            Prefix_lines<-b[which(x[b+1,4]=="名詞")]
+            Noun_lines<-Prefix_lines+1
+            len<-length(Prefix_lines)
+            if(len!=0){
+              for(i in 1:len){
+                Current_PrefixLine<-x[Prefix_lines[i],]
+                Current_NounLine<-x[Noun_lines[i],]
+                Fused<-fun_Trivial_Prefix(Current_PrefixLine, Current_NounLine)
+                x[Noun_lines[i],]<-Fused
+              }
+              new_x<-x[-Prefix_lines,]
+            }else{
+              new_x<-x
+            }
+          }else{
+            cat("mode只能为M或J。\n")
+          }
+        return(new_x)
+      }
+      if(target=="Suf"){
+        if(mode=="J"){
+          b<-which(x[,4]=="接尾辞")
+          Suffix_lines<-b[which(x[b-1,4]=="名詞")]
+          Noun_lines<-Suffix_lines-1
+          len<-length(Suffix_lines)
+          if(len!=0){
+            for(i in 1:len){
+              Current_NounLine<-x[Noun_lines[i],]
+              Current_SuffixLine<-x[Suffix_lines[i],]
+              Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
+              x[Noun_lines[i],]<-Fused
+            }
+            new_x<-x[-Suffix_lines,]
+          }else{
+            new_x<-x
+          }
+        }else{
+          cat("在target为“Suf”的情况下，mode只能为J。\n")
+        }
+        return(new_x)
+      }
+    }
+  }
+  #前処理
+  if(1){
+    x<-x%>%fun_fusion_PrefixOrSuffix_and_Noun()
+    括弧類<-which(str_detect(string=x[,1], pattern="（|）|「|」|『|』|【|】|［|］"))
+    if(length(括弧類)!=0)x<-x[-括弧類,]
+    matched<-which(x[, 2]=="形容詞")
+  }
+  #コア部分（活用形割り当て＆集計）
+  #口語体
+  if(1){
+    ##各活用形に割り当て
+    if(1){
+      the_imperfect_form<-matched[which(str_detect(x[matched, 1], "かろ$"))]#未然形
+      the_continuative_form<-matched[which(str_detect(x[matched, 1], "かっ$|く$"))]#連用形
+      the_imperfect_form_Bungotai<-the_continuative_form[which(str_detect(x[the_continuative_form], "く$")&x[the_continuative_form+1, 8]=="ば"&str_detect(x[the_continuative_form+2, 8], "^(?!た[んり]).*$"))]#文語体形容詞の未然形の片割れである"（シ）クバ"が誤ってこっちのカテゴリーにカウントされることを防止、なお、「なく、ばたんと…」みたいな特殊な例文をも考慮した…辛かった。
+      the_continuative_form<-setdiff(the_continuative_form, the_imperfect_form_Bungotai)#形容詞の文語体未然形活用にマッチした携帯素番号を取り除く。
+      provisional<-matched[which(str_detect(x[matched, 1], "[いイ]$"))]#終止形か連体形か分けるために一時的に混ぜておく．
+      the_end_form<-0#終止形（仮）
+      the_attributive_form<-provisional[which(x[provisional+1, 2]=="名詞")]#連体形（仮）
+      provisional<-setdiff(provisional, the_attributive_form)#把确定是“連体形”的形态素编号从混合向量中删去。
+      if(length(provisional)!=0){
+        the_end_form<-provisional[which(str_detect(x[provisional+1, 2], "助詞|助動詞|接続詞|記号"))]#未完成の終止形集合
+        the_attributive_form<-c(the_attributive_form, provisional[which(str_detect(x[provisional+1, 2], "副詞|連体詞|接頭詞|感動詞|動詞"))])#未完成の連体形集合
+        followed_by_adjective<-provisional[which(x[provisional+1, 2]=="形容詞")]
+        if(length(followed_by_adjective)!=0){
+          followed_by_noun<-followed_by_adjective[which(x[followed_by_adjective+2, 2]=="名詞")]#形容詞+形容詞+名詞
+          followed_by_mark<-followed_by_adjective[which(x[followed_by_adjective+2, 2]=="記号")]#形容詞+形容詞+記号
+          followed_by_particle<-followed_by_adjective[which(x[followed_by_adjective+2, 2]=="助詞")]#形容詞+形容詞+助詞
+          the_end_form<-c(the_end_form, followed_by_mark, followed_by_particle)#終止形集合を補完．
+          the_attributive_form<-c(the_attributive_form, followed_by_noun)#連体形集合を補完．
+        }
+      }
+      the_conditional_form<-matched[which(str_detect(x[matched, 1], "けれ$"))]#仮定形
+      the_stem<-matched[which(x[matched, 7]=="ガル接続")]#語幹
+      #既にカテゴライズされた形態素をmatchedプールから取り除き、次なる割り当てをスピードアップする。
+      temp_matched<-c(the_imperfect_form, the_continuative_form, the_imperfect_form_Bungotai, the_end_form, the_attributive_form, the_conditional_form, the_stem)
+      matched_2<-setdiff(matched, temp_matched)      
+    }
+  }
+  #文語体
+  if(1){
+    ##各活用形に割り当て（フェーズ壱）
+    if(1){
+      the_imperfect_form_bungo<-c(matched_2[which(x[matched_2, 7]=="未然ヌ接続")], the_imperfect_form_Bungotai)#文語未然形
+      the_end_form_bungo<-matched_2[which(x[matched_2, 7]=="文語基本形")]#文語終止形
+      the_attributive_form_bungo<-matched_2[which(x[matched_2, 7]=="体言接続"&x[matched_2, 1]!="ぽき")]#文語連体形
+      the_imperative_form_bungo<-matched_2[which(x[matched_2, 7]=="命令ｅ")]#文語命令形
+    }
+    ##MeCabデフォルト辞書の不完全ゆえの幾つかの特殊なケース
+    if(1){
+      #特殊ケースごとに対策を練る。
+      if(1){
+        special_1<-which(x[,1]=="しから");special_1<-special_1[which(str_detect(x[special_1-1, 1], "[らけ]$")&str_detect(x[special_1+1, 1], "^ぬ"))]#「彼らしからぬ…」と「けしからぬ」対策
+        special_2<-which(str_detect(x[,1], "^(奇|く|くす)し(き|くも)$"))#「奇しき」と「奇しくも」
+        if(length(special_2)!=0){
+          special_2_き<-special_2[which(str_detect(x[special_2, 1], "き$"))]#奇しき/くしき
+          special_2_く<-setdiff(special_2, special_2_き)#奇しくも/くしくも
+          if(length(special_2_く)!=0)the_continuative_form<-c(the_continuative_form, special_2_く)#把「奇しくも/くしくも」にマッチした形態素の通し番号を形容詞の口語連用形カテゴリーに入れる（長さが〇でなければ）．
+        }else{
+          special_2_き<-NULL->special_2_く#予め空のオブジェクトを用意する．
+        }
+        special_3<-which(str_detect(x[,1], "^あわよくば$"))
+        special_4<-which(str_detect(x[,1], "^[あ悪]しからず$"))
+        #「少し」およびその派生形態素を形容詞として扱う．
+        special_5<-which(str_detect(x[,1], "^(少|すこ)し[くも]?$"))
+        if(length(special_5)!=0){
+          next_き<-special_5[which(x[special_5, 1]=="き")]#少し_き
+          next_も<-c(special_5[which(x[special_5, 1]=="すこしも")], special_5[which(x[special_5, 1]=="少し"&x[special_5+1, 1]=="も")])#すこしも/少しも
+          next_く<-special_5[which(str_detect(x[special_5, 1], "^(少|すこ)しく$"))]#少しく/すこしく
+          special_5_stem<-setdiff(special_5, c(next_き, next_も, next_く))#ただの「少し/すこし」、後ろには何も余計な尾鰭がついていない。
+        }else{
+          next_き<-NULL->next_も
+          next_く<-NULL->special_5_stem#予め空のオブジェクトを用意する．
+        }
+        special_6<-which(x[, 1]=="けしからん")#「けしからん」は一つの形態素として認識されている。
+      }
+      #特殊ケースにヒットした分を補完する（フェーズ弍）．
+      if(1){
+        the_imperfect_form_bungo<-c(the_imperfect_form_bungo, special_1, special_3, special_4, special_6)#【らしからぬ・けしからぬ】(special_1), 【あわよくば】(special_3), 【あ/悪しからず】(special_4), 【けしからん】(special_6)にマッチした形態素番号を形容詞の文語未然形カテゴリーに入れる．
+        the_attributive_form_bungo<-c(the_attributive_form_bungo, special_2_き, next_き)#「奇しき/くしき」と「少しき/すこしき」に該当する形態素の通し番号を形容詞の文語連体形のカテゴリーに入れる．
+        the_end_form_bungo<-c(the_end_form_bungo, next_も, special_5_stem)#「少しも/すこしも」と何の尾鰭が付いていない「少し/すこし」にマッチした形態素の通し番号を形容詞の文語終止形カテゴリーに入れる．
+      }
+    }
+  }
+  #割り当て
+  #形容詞の口語体活用に対して，活用形ごとのベクトルの長さを測り，出力となるベクトルの各要素に充填し，名前付けする．
+  if(1){
+    Colloquial<-c(length(the_imperfect_form),#未然形
+                  length(the_continuative_form),#連用形
+                  length(the_end_form),#終止形
+                  length(the_attributive_form),#連体形
+                  length(the_conditional_form),#仮定形
+                  length(the_stem))#語幹
+    names(Colloquial)<-c("形容詞未然形（口語）", "形容詞連用形（口語）", "形容詞終止形（口語）", "形容詞連体形（口語）", "形容詞仮定形（口語）", "形容詞語幹")
+    kougo_number<-c(the_imperfect_form, the_continuative_form, the_end_form, the_attributive_form, the_conditional_form, the_stem)
+  }
+  #形容詞の文語体活用に対して，活用形ごとのベクトルの長さを測り，出力となるベクトルの各要素に充填し，名前付けする． 
+  if(1){
+    Bungo<-c(length(the_imperfect_form_bungo),#文語未然形
+             length(the_end_form_bungo),#文語終止形
+             length(the_attributive_form_bungo),#文語連体形
+             length(the_imperative_form_bungo))#文語命令形
+    names(Bungo)<-c("形容詞未然形（文語）", "形容詞終止形（文語）", "形容詞連体形（文語）", "形容詞命令形（文語）")
+    bungo_number<-c(the_imperfect_form_bungo, the_end_form_bungo, the_attributive_form_bungo, the_imperative_form_bungo)
+  }
+  #イマジナリーベクトルの2列目の対応セルに活用形情報を割り振る．（对假想向量组第2列的填充）
+  if(1){
+    num_morphemes<-nrow(x)
+    imaginary_2vectors<-matrix(nrow=num_morphemes, ncol=2)#生成1个列数为2的向量对象，第1列为以“い”接尾的形容词原形，第2列为其对应的活用形。
+    colnames(imaginary_2vectors)<-c("形容詞原形", "活用形")#赋列名
+    total_number<-c(kougo_number, bungo_number)
+    imaginary_2vectors[total_number, 1]<-x[total_number, 8]#将各形容词的原型赋给第1列
+    #口語体
+    imaginary_2vectors[the_imperfect_form, 2]<-"形容詞未然形（口語）"
+    imaginary_2vectors[the_continuative_form, 2]<-"形容詞連用形（口語）"
+    imaginary_2vectors[the_end_form, 2]<-"形容詞終止形（口語）"
+    imaginary_2vectors[the_attributive_form, 2]<-"形容詞連体形（口語）"
+    imaginary_2vectors[the_conditional_form, 2]<-"形容詞仮定形（口語）"
+    imaginary_2vectors[the_stem, 2]<-"形容詞語幹"
+    #文語体
+    imaginary_2vectors[the_imperfect_form_bungo, 2]<-"形容詞未然形（文語）"
+    imaginary_2vectors[the_end_form_bungo, 2]<-"形容詞終止形（文語）"
+    imaginary_2vectors[the_attributive_form_bungo, 2]<-"形容詞連体形（文語）"
+    imaginary_2vectors[the_imperative_form_bungo, 2]<-"形容詞命令形（文語）"
+    #切り出す（形容詞以外の形態素を排除し、ピュアな形容詞とその活用形情報のみからなるイマジナリー2ベクトルを作り出す．）
+    pure_imaginary_2vectors<-imaginary_2vectors[total_number,]
+    #整形
+    num_adjectives<-length(total_number)
+    unique_adjectives<-unique(pure_imaginary_2vectors[,1])
+    lab<-c("形容詞未然形（口語）", "形容詞連用形（口語）", "形容詞終止形（口語）", "形容詞連体形（口語）", "形容詞仮定形（口語）", "形容詞語幹", "形容詞未然形（文語）", "形容詞終止形（文語）", "形容詞連体形（文語）", "形容詞命令形（文語）")
+    #マトリックス化
+    result<-matrix(0, nrow=length(unique_adjectives), 10)
+    colnames(result)<-lab
+    rownames(result)<-unique_adjectives
+    for(i in 1:num_adjectives){
+      x<-which(unique_adjectives==pure_imaginary_2vectors[i, 1])
+      y<-which(lab==pure_imaginary_2vectors[i, 2])
+      result[x, y]<-result[x, y]+1
+    }
+    #ベクトル化
+    result_vec<-NULL
+    result_vec_names<-NULL
+    #对result矩阵中不为零的格，将其接到输出向量（result_vec）后端，并将其行名（形容词原形）和列名（活用形）联结起来作为向量中的元素名。
+    for(r in 1:length(unique_adjectives)){
+      for(c in 1:10){if(result[r, c]!=0){result_vec<-c(result_vec, result[r, c]);result_vec_names<-c(result_vec_names, paste(unique_adjectives[r], lab[c], sep="_"))}}
+    }
+    names(result_vec)<-result_vec_names
+    #読み込んだテキストの形態素総数を分母とする相対度数化を行い、もう一本の出力用ベクトルを作る。
+    result_rf_vec<-result_vec/num_morphemes#rfはrelative frequencies的首字母
+  }
+  #出力部
+  list(result, result_vec, result_rf_vec)
+}
