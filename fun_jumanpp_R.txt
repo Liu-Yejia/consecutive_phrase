@@ -1,4 +1,4 @@
-fun_jumanpp_R<-function(input, M=TRUE, mode="XVI"){
+fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI"){
   #输入为被压缩为一个元素的字符串，输出用Juman++进行形态素解析的结果（矩阵），default为进行连续名词合并。
   #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
   #然后使用Juman++对每个短句进行形态素解析，最后按照“一个（无句读点）短句+原文中后接句读点”的方式叠加等长度向量作为结果输出
