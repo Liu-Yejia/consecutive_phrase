@@ -1,8 +1,4 @@
-
-
-
-
-fun_Matching_Auxiliary_Verb_compact_52<-function(x){#x为文本
+fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
   library(stringr)
   #自制函数
   if(1){
@@ -502,7 +498,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x){#x为文本
     }
   }
   #前期准备
-  if(1){
+  if(0){
     #此处读取文本，并进行形态素解析（先Juman++，后MeCab）
     if(1){
       #对于“べき”一族提前就行替换。
@@ -1762,9 +1758,9 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x){#x为文本
         }
         #将上述4列汇总成1个df对象，用来存储中期结果（即M_Res中获匹配助动词的相关信息）
         HIT_M<-data.frame(表层品词标签=column_1_M,
-                          行编号=column_2_M,
-                          基本形=column_3_M,
-                          活用形种类=column_4_M
+                                行编号=column_2_M,
+                                基本形=column_3_M,
+                                活用形种类=column_4_M
         )
       }
       nrow_J<-nrow(HIT_J)#J_Res中匹配到的词素数
@@ -1898,8 +1894,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x){#x为文本
       #                  活用形种类=column_4_M
       #                 )
       transformed_HIT_M<-data.frame(浅层标签="助動詞",
-                                    中层标签=paste("助動詞", HIT_M$基本形, sep="_"),#中层便签："助动词"_基本形
-                                    深层标签=paste(HIT_M$基本形, HIT_M$活用形种类, sep="_"))#将HIT_M的内容整形成和res2compact一样的
+                                        中层标签=paste("助動詞", HIT_M$基本形, sep="_"),#中层便签："助动词"_基本形
+                                        深层标签=paste(HIT_M$基本形, HIT_M$活用形种类, sep="_"))#将HIT_M的内容整形成和res2compact一样的
       res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
       return(res2compact)
       #至此，该函数（fun_Matching_Auxiliary_Verb_compact）的最终输出已编辑完成。
