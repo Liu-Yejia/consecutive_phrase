@@ -1,0 +1,64 @@
+fun_LBSPattern<-function(string){
+    #该自制函数用以生成新特征量「連文節パターン」向量。
+    #第1参数string为连续2个文节联结所得的字符串。
+    #第2参数x为对string进行词素解析的结果矩阵（4/29更新该行注释，将词素解析软件限定为MeCab）。
+    ##准备M_Res
+    if(1){
+      if(!str_detect(string, "^.+[、。]$")){#若string不以记号接尾，在其后方连1个“、”，确保可以正常运行Analytic_MeCab_429函数
+        temp_string<-str_c(string, "、")
+        Res_M<-Analytic_MeCab_429(string)
+        #因为在检测动词，形容词，助动词活用形时需要考察对象词素的后方3个词素，故Analytic_MeCab_429会在词素解析结果下方粘上3行空向量。
+        #由于先前在string后方连了一个“、”，所以得移除其对应行。
+        temp_len<-nrow(Res_M)
+        Res_M<-Res_M[-(temp_len-3), ]
+      }else{#对于以“、”或“。”结尾的string
+        Res_M<-Analytic_MeCab_429(string)
+      }
+      net_Res_M<-Res_M[-which(Res_M[, 1]==""), ]#M_Resの正味部分
+    }
+    ##准备J_Res
+    if(1){
+      Res_J<-fun_jumanpp_R_51(string)
+    }
+    if(0){
+      nr<-nrow(x)#先数对象x有几行
+      SupCo<-ifelse(mode=="M", 2, 4)#上位概念（Superordinate Concept）的缩写，即词素品词大分类所在列序号
+      SubCo<-ifelse(mode=="M", 3, 6)#下位概念（Subordinate Concept）的缩写，即词素品词小分类所在列序号
+      Basic<-ifelse(mode=="M", 8, 3)#基本型（Basic Form），即动词
+      Surface_Chain<-x[, 1]#形態素単位で分かち書きされた連文節文字列
+      SupCo_Chain<-x[, SupCo]#全构成词素的上位概念链
+      Sueoki<-which(SupCo_Chain, "助詞")#変数名の通り，表層形態素のままで（据え置き）。
+    }
+    #为函数fun_LBSPattern准备
+    nr_net_Res_M<-nrow(net_Res_M)
+    FINAL<-matrix("", nr_net_Res_M, 3)
+    colnames(FINAL)<-c("浅层标签", "中层标签", "深层标签")
+    #对于标点符号词素，将其词素形式直接填入三阶粒度矩阵
+    marks_sn<-which(M_Res[, 2]=="記号")
+    FINAL[marks_sn, ]<-M_Res[marks_sn, 1]
+    #对于助词词素，进行同样的处理
+    postpositions_sn<-which(M_Res[, 2]=="助詞")
+    FINAL[postpositions_sn, ]<-M_Res[postpositions_sn, 1]
+    #对于动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    Res_V<-fun_find_verbs_C_V_CVS_MeCab(material=net_Res_M)#检索net适配MeCab词素解析结果
+    V_series_numbers<-Res_V$匹配序列号
+    V_3level_granularities<-Res_V$三阶粒度
+    nr_net_Res_M[V_series_numbers, ]<-V_3level_granularities
+    #对于形容词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    Res_A<-fun_Adjective_Conjugation_51(net_Res_M)
+    A_series_numbers<-Res_A$トータルナンバー
+    A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$活用形矩阵[, 2], sep="_"), 深层标签=fun_glue(Res_A$活用形矩阵, sep="_"))
+    #对于助动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    Res_AV<-fun_Matching_Auxiliary_Verb_compact_52(string, J_Res=J_Res, M_Res=M_Res)
+    AV_series_numbers<-Res_AV[[1]]
+    AV_3level_granularities<-Res_AV[[2]]
+    #将上述3类品词的3阶粒度信息填充入FINAL矩阵
+    FINAL[V_series_numbers, ]<-V_3level_granularities
+    FINAL[A_series_numbers, ]<-A_3level_granularities
+    FINAL[AV_series_numbers, ]<-AV_3level_granularities
+    processed<-c(marks_sn, postpositions_sn, V_series_numbers, A_series_numbers, AV_series_numbers)#上述5类品词对应的行编号
+    still<-setdiff(1:nr_net_Res_M, processed)#上述5类品词以外的行编号
+    FINAL[still, 2]<-net_Res_M[still, 2]
+    FINAL[still, 3]<-net_Res_M[still, 1]
+    return(FINAL)
+}
