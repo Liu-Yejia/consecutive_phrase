@@ -29,7 +29,7 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
     }
     CVS_Matrix<-matrix(0, nrow=num_objects, ncol=4)#“子母サカ”矩阵
     colnames(CVS_Matrix)<-c("子音動詞", "母音動詞", "サ行変格活用動詞", "カ行変格活用動詞")
-    rownames(CVS_Matrix)<-object_res[,8]
+    rownames(CVS_Matrix)<-objects_res[,8]
   }
   #填充<活用形>矩阵
   if(1){
@@ -55,9 +55,9 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
     CVS_Matrix[str_detect(objects_res[,6], "^カ変.*$"), 4]<-1
   }
   #list(匹配序列号=x, 活用形=Conjugates_Matrix, 子母サカ=CVS_Matrix)
-  基本形=object_res[, 8]
-  活用形=types[apply(Conjugates_Matrix, 1, fun_0)]
-  匹配序列号=x
+  基本形<-objects_res[, 8]
+  活用形<-types[apply(Conjugates_Matrix, 1, fun_0)]
+  匹配序列号<-x
   三阶粒度=data.frame(浅层标签="動詞",
                       中层标签=paste("動詞", 活用形, sep="_"),
                       深层标签=paste(基本形, 活用形, sep="_")
