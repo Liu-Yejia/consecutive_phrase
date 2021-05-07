@@ -27,23 +27,33 @@ fun_KNP<-function(input){
   }
   input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&abcdefghijklmnopqrstuvwxyz()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ（）", input)
   Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
-  Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
-  Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
-  final_res<-rep("", 2)
-  len<-length(Rebuilt_Parts)
-  for(i in 1:len){
-    temp_input<-Rebuilt_Parts[i]
-    command<-paste0("echo ", temp_input, "|jumanpp|knp")
-    temporary_res<-system(command, intern=TRUE)
-    num_morphemes<-length(temporary_res)
-    result<-rep("", num_morphemes-2)#掐头去尾
-    for(j in 2:(num_morphemes-1)){
-      result[j-1]<-temporary_res[j]%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
+  if(length(Punctuation_Marks)!=0){#至少含1个顿/句号
+    Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+    Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+    final_res<-rep("", 2)
+    len<-length(Rebuilt_Parts)
+    for(i in 1:len){
+      temp_input<-Rebuilt_Parts[i]
+      command<-paste0("echo ", temp_input, "|jumanpp|knp")
+      temporary_res<-system(command, intern=TRUE)
+      num_morphemes<-length(temporary_res)
+      result<-rep("", num_morphemes-2)#掐头去尾
+      for(j in 2:(num_morphemes-1)){
+        result[j-1]<-temporary_res[j]%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
+      }
+      result<-str_split_fixed(result, pattern=" ", n=2)
+      final_res<-rbind(final_res, result)
+      cat(i, "\n")
     }
-    result<-str_split_fixed(result, pattern=" ", n=2)
-    final_res<-rbind(final_res, result)
-    cat(i, "\n")
+    final_res<-final_res[-1, 1]
+  }else{#不含顿/句号
+    new_input<-str_c(input, "、")#那就加个顿号
+    command<-paste("echo ", new_input, "|jumanpp|knp")
+    temporary_res<-system(command, intern=TRUE)%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
+    num_morphemes<-length(temporary_res)
+    result<-str_split_fixed(temporary_res, pattern=" ", n=2)
+    final_res<-result[-c(1, num_morphemes), 1]
+    final_res[num_morphemes-2]<-str_sub(final_res[num_morphemes-2], end=-2)
   }
-  final_res<-final_res[-1,]
-  return(as.vector(final_res[,1]))
+  return(as.vector(final_res))
 }
