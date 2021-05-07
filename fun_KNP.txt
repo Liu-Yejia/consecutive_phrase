@@ -1,55 +1,49 @@
 fun_KNP<-function(input){
-    library(stringr)
-    fun_glue<-function(x,direction=1,sep="//"){
-      if(is.null(dim(x))){
-        len<-length(x)
-        total<-x[1]
-        for(i in 2:len){
-          total<-paste(total,x[i],sep=sep)
+  library(stringr)
+  fun_glue<-function(x,direction=1,sep="//"){
+    if(is.null(dim(x))){
+      len<-length(x)
+      total<-x[1]
+      for(i in 2:len){
+        total<-paste(total,x[i],sep=sep)
+      }
+    }else{
+      dimen<-switch(direction,
+                    "1"=ncol(x),
+                    "2"=nrow(x))
+      if(direction==1){
+        total<-x[,1]
+        for(i in 2:dimen){
+          total<-str_c(total, x[,i], sep=sep)
         }
       }else{
-        dimen<-switch(direction,
-                      "1"=ncol(x),
-                      "2"=nrow(x))
-        if(direction==1){
-          total<-x[,1]
-          for(i in 2:dimen){
-            total<-str_c(total, x[,i], sep=sep)
-          }
-        }else{
-          total<-x[1,]
-          for(i in 2:dimen){
-            total<-str_c(total, x[i,], sep=sep)
-          }
+        total<-x[1,]
+        for(i in 2:dimen){
+          total<-str_c(total, x[i,], sep=sep)
         }
       }
-      return(total)
     }
-    input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&abcdefghijklmnopqrstuvwxyz()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ（）", input)
-    Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
-    Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
-    Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
-    final_res<-rep("", 2)
-    len<-length(Rebuilt_Parts)
-    for(i in 1:len){
-      temp_input<-Rebuilt_Parts[i]
-      command<-paste0("echo ", temp_input, "|jumanpp|knp")
-      temporary_res<-system(command, intern=TRUE)
-      num_morphemes<-length(temporary_res)
-      result<-rep("", num_morphemes-2)
-      for(j in 2:(num_morphemes-1)){
-        result[j-1]<-temporary_res[j]%>%
-          str_replace(" +", "")%>%
-          str_replace_all("[┐|┤|\\│]", "")%>%
-          str_replace("(─+　+)", "")%>%
-          str_replace_all("(　? ?)", "")%>%
-          str_replace_all("<", " ")%>%
-          str_replace_all(">.?", "")
-      }
-      result<-str_split_fixed(result, pattern=" ", n=2)
-      final_res<-rbind(final_res, result[-num_morphemes,])
-      final_res<-final_res[-1,]
-      cat(i, "\n")
-    }
-    return(as.vector(final_res[,1]))
+    return(total)
   }
+  input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&abcdefghijklmnopqrstuvwxyz()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ（）", input)
+  Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
+  Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+  Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+  final_res<-rep("", 2)
+  len<-length(Rebuilt_Parts)
+  for(i in 1:len){
+    temp_input<-Rebuilt_Parts[i]
+    command<-paste0("echo ", temp_input, "|jumanpp|knp")
+    temporary_res<-system(command, intern=TRUE)
+    num_morphemes<-length(temporary_res)
+    result<-rep("", num_morphemes-2)#掐头去尾
+    for(j in 2:(num_morphemes-1)){
+      result[j-1]<-temporary_res[j]%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
+    }
+    result<-str_split_fixed(result, pattern=" ", n=2)
+    final_res<-rbind(final_res, result)
+    cat(i, "\n")
+  }
+  final_res<-final_res[-1,]
+  return(as.vector(final_res[,1]))
+}
