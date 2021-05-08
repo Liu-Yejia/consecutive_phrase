@@ -42,6 +42,25 @@ fun_KNP<-function(input){
         result[j-1]<-temporary_res[j]%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
       }
       result<-str_split_fixed(result, pattern=" ", n=2)
+      #将连续n (n>=2) 个被判定为“体言”的文节合并为1个文节，以应对像“新型コロナウイルス”这样的复合名词
+      if(any(result[, 2]=="体言")){
+        substantive_positions<-which(result[, 2]=="体言"&str_detect(result[, 1], "^(?!.*から$).*$"))
+        len_sub<-length(substantive_positions)
+        if(len_sub>1){
+          dif<-substantive_positions[-1]-substantive_positions[-length(substantive_positions)]
+          if(any(dif==1)){
+            tres<-fun_Continuum_Searcher(substantive_positions)
+            for(j in 1:nrow(tres)){
+              起点<-tres[j, 1]
+              终点<-tres[j, 2]
+              连续块<-tres[j, 1]:tres[j, 2]
+              result[起点, 1]<-fun_InVec_adhere(result[连续块, 1], "")
+              result[连续块[-1], ]<-""
+            }
+            result<-result[-which(result[,1]==""), ]
+          }
+        }
+      }
       final_res<-rbind(final_res, result)
       cat(i, "\n")
     }
@@ -52,8 +71,26 @@ fun_KNP<-function(input){
     temporary_res<-system(command, intern=TRUE)%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
     num_morphemes<-length(temporary_res)
     result<-str_split_fixed(temporary_res, pattern=" ", n=2)
-    final_res<-result[-c(1, num_morphemes), 1]
-    final_res[num_morphemes-2]<-str_sub(final_res[num_morphemes-2], end=-2)
+    final_res<-result[-c(1, num_morphemes), ]
+    final_res[num_morphemes-2, 1]<-str_sub(final_res[num_morphemes-2, 1], end=-2)#把之前添加的“、”删掉
+    if(any(final_res[, 2]=="体言")){
+      substantive_positions<-which(final_res[, 2]=="体言"&str_detect(final_res[, 1], "^(?!.*から$).*$"))
+      len_sub<-length(substantive_positions)
+      if(len_sub>1){
+        dif<-substantive_positions[-1]-substantive_positions[-length(substantive_positions)]
+        if(any(dif==1)){
+          tres<-fun_Continuum_Searcher(substantive_positions)
+          for(i in 1:nrow(tres)){
+            起点<-tres[i, 1]
+            终点<-tres[i, 2]
+            连续块<-tres[i, 1]:tres[i, 2]
+            final_res[起点, 1]<-fun_InVec_adhere(final_res[连续块, 1], "")
+            final_res[连续块[-1], ]<-""
+          }
+          final_res<-final_res[-which(final_res[,1]==""), 1]
+        }
+      }
+    }
   }
   return(as.vector(final_res))
 }
