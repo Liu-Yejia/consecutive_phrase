@@ -7,7 +7,7 @@ fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
     #输入x,y为两条长度均为含16个元素的向量,且为处理后的Juman++形态素解析结果（更新于R3/3/10）
     #x为“接头辞”行，y为后接的“名词”行
     Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
-    Res<-rep("", 15)#最终输出的结果
+    Res<-rep("", 16)#最终输出的结果
     Simple_Combine<-c(1:3, 14, 15)#简单结合
     Keep_the_Latter<-c(4:11)#仅保留后者
     Padding_Combine<-13#中间插入自定义分隔符后结合
@@ -44,8 +44,8 @@ fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
     }
     return(Res)
   }
-  x<-Current_NounLine; y<-Current_SuffixLine
-  (temp_res<-fun_Trivial_Suffix(x=x, y=y))
+  #x<-Current_NounLine; y<-Current_SuffixLine
+  #(temp_res<-fun_Trivial_Suffix(x=x, y=y))
   #----
   #x是已经过名词合并的MeCab或Juman++的形态素解析结果；参数mode用来指定输入的形态素结果是来自MeCab或是Juman++。
   #参数target用来指定和“名词”行合并的是“接头辞”还是“接尾辞”（前者为"Pre"，后者为"Suf"）
@@ -97,13 +97,13 @@ fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
       len<-length(Suffix_lines)
       if(len!=0){
         for(i in 1:len){
-          i<-3
-          cat(i, "\n")
+          #i<-3
+          #cat(i, "\n")
           Current_NounLine<-x[Noun_lines[i],]
           Current_SuffixLine<-x[Suffix_lines[i],]
           Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
-          x[Noun_lines[i],]<-c(Fused, "")
-          cat(i, "\n")
+          x[Noun_lines[i],]<-Fused
+          #cat(i, "\n")
         }
         new_x<-x[-Suffix_lines,]
       }else{
