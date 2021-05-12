@@ -37,13 +37,15 @@ fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
     Res[Padding_Combine]<-Ore[,Padding_Combine]%>%fun_glue(direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
     #for Tricky One: 12
     if(1){
+      Ore[which(str_detect(Ore[, 12], "^(?!.*代表表記).*")), 12]<-"代表表記:/"
       Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
       Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
-      #Res[12]<-fun_InVec_adhere(vec=c("代表表記:", Chinese_Characters, "/", Hiragana), sep="")
       Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
     }
     return(Res)
   }
+  x<-Current_NounLine; y<-Current_SuffixLine
+  (temp_res<-fun_Trivial_Suffix(x=x, y=y))
   #----
   #x是已经过名词合并的MeCab或Juman++的形态素解析结果；参数mode用来指定输入的形态素结果是来自MeCab或是Juman++。
   #参数target用来指定和“名词”行合并的是“接头辞”还是“接尾辞”（前者为"Pre"，后者为"Suf"）
@@ -95,10 +97,13 @@ fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
       len<-length(Suffix_lines)
       if(len!=0){
         for(i in 1:len){
+          i<-3
+          cat(i, "\n")
           Current_NounLine<-x[Noun_lines[i],]
           Current_SuffixLine<-x[Suffix_lines[i],]
           Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
-          x[Noun_lines[i],]<-Fused
+          x[Noun_lines[i],]<-c(Fused, "")
+          cat(i, "\n")
         }
         new_x<-x[-Suffix_lines,]
       }else{
