@@ -1,5 +1,6 @@
 fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自制函数fun_MeCab的输出（10列矩阵）
   #最基础的几个自制函数
+  library(stringr)
   if(1){
     #临时函数，输入为向量，输出其中非零元素的位置
     fun_0<-function(x){
@@ -20,7 +21,11 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
     Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)#活用形矩阵
     types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
     colnames(Conjugates_Matrix)<-types
-    rownames(Conjugates_Matrix)<-objects_res[,8]
+    if(num_objects>1){
+      rownames(Conjugates_Matrix)<-objects_res[, 8]
+    }else{
+      rownames(Conjugates_Matrix)<-objects_res[8]
+    }
     #由于MeCab的解析结果并不具有动词的“态”信息，故略去“态”矩阵
     if(0){
       Voices_Matrix<-matrix(0, nrow=num_objects, ncol=7)#态矩阵
@@ -29,38 +34,75 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
     }
     CVS_Matrix<-matrix(0, nrow=num_objects, ncol=4)#“子母サカ”矩阵
     colnames(CVS_Matrix)<-c("子音動詞", "母音動詞", "サ行変格活用動詞", "カ行変格活用動詞")
-    rownames(CVS_Matrix)<-objects_res[,8]
+    if(num_objects>1){
+      rownames(CVS_Matrix)<-objects_res[, 8]
+    }else{
+      rownames(CVS_Matrix)<-objects_res[8]
+    }
   }
   #填充<活用形>矩阵
   if(1){
-    Conjugates_Matrix[which(objects_res[,7]=="未然ヌ接続"), 1]<-1
-    Conjugates_Matrix[which(str_detect(objects_res[,7], "^未然.+$")), 2]<-1
-    Conjugates_Matrix[which(objects_res[,7]=="連用タ接続"), 3]<-1
-    if(1){
-      basic<-which(objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
-      basic_num<-x[basic]#在全体词素中的序列号
-      series_end_form<-basic[sort(union(which(str_detect(material[basic_num+1, 2], "^(記号|助詞)$")), which(material[basic_num+1, 4]=="助動詞語幹")))]
-      series_attributive<-setdiff(basic, series_end_form)
+    if(num_objects>1){
+      #objects_res[,7]
+      colnames(Conjugates_Matrix)
+      Conjugates_Matrix[which(objects_res[,7]=="未然ヌ接続"), 1]<-1
+      Conjugates_Matrix[which(str_detect(objects_res[,7], "^未然(?!.*ヌ接続).*$")), 2]<-1
+      #Conjugates_Matrix[which(objects_res[,7]=="連用タ接続"), 3]<-1
+      Conjugates_Matrix[which(str_detect(objects_res[, 7], "^連用.+$")), 3]<-1
+      if(1){
+        basic<-which(objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
+        basic_num<-x[basic]#在全体词素中的序列号
+        series_end_form<-basic[sort(union(which(str_detect(material[basic_num+1, 2], "^(記号|助詞)$")), which(material[basic_num+1, 4]=="助動詞語幹")))]
+        series_attributive<-setdiff(basic, series_end_form)
+      }
+      Conjugates_Matrix[series_attributive, 4]<-1
+      Conjugates_Matrix[series_end_form, 5]<-1
+      Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
+      Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1
+    }else{
+      double_objects_res<-rbind(objects_res, objects_res)
+      double_x<-rep(x, 2)
+      double_Conjugates_Matrix<-rbind(Conjugates_Matrix, Conjugates_Matrix)
+      double_Conjugates_Matrix[which(double_objects_res[,7]=="未然ヌ接続"), 1]<-1
+      double_Conjugates_Matrix[which(str_detect(double_objects_res[,7], "^未然(?!.*ヌ接続).*$")), 2]<-1
+      double_Conjugates_Matrix[which(double_objects_res[,7]=="連用タ接続"), 3]<-1
+      if(1){
+        basic<-which(double_objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
+        basic_num<-double_x[basic]#在全体词素中的序列号
+        series_end_form<-basic[sort(union(which(str_detect(material[basic_num+1, 2], "^(記号|助詞)$")), which(material[basic_num+1, 4]=="助動詞語幹")))]
+        series_attributive<-setdiff(basic, series_end_form)
+      }
+      double_Conjugates_Matrix[series_attributive, 4]<-1
+      double_Conjugates_Matrix[series_end_form, 5]<-1
+      double_Conjugates_Matrix[which(double_objects_res[,7]=="仮定形"),6]<-1
+      double_Conjugates_Matrix[which(str_detect(double_objects_res[,7], "^命令.+$")), 7]<-1
+      Conjugates_Matrix<-t(double_Conjugates_Matrix[1, ])
+      rownames(Conjugates_Matrix)<-rownames(double_Conjugates_Matrix)[1]
     }
-    Conjugates_Matrix[series_attributive, 4]<-1
-    Conjugates_Matrix[series_end_form, 5]<-1
-    Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
-    Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1 
   }
   #填充<子母サカ>矩阵
   if(1){
-    CVS_Matrix[str_detect(objects_res[,6], "^一段.*$"), 1]<-1
-    CVS_Matrix[str_detect(objects_res[,6], "^五段.*$"), 2]<-1
-    CVS_Matrix[str_detect(objects_res[,6], "^サ変.*$"), 3]<-1
-    CVS_Matrix[str_detect(objects_res[,6], "^カ変.*$"), 4]<-1
+    if(num_objects>1){
+      CVS_Matrix[str_detect(objects_res[,6], "^一段.*$"), 1]<-1
+      CVS_Matrix[str_detect(objects_res[,6], "^五段.*$"), 2]<-1
+      CVS_Matrix[str_detect(objects_res[,6], "^サ変.*$"), 3]<-1
+      CVS_Matrix[str_detect(objects_res[,6], "^カ変.*$"), 4]<-1
+    }else{
+      double_CVS_Matrix<-rbind(CVS_Matrix, CVS_Matrix)
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^一段.*$"), 1]<-1
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^五段.*$"), 2]<-1
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^サ変.*$"), 3]<-1
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^カ変.*$"), 4]<-1
+      CVS_Matrix<-t(double_CVS_Matrix[1, ])
+      rownames(CVS_Matrix)<-rownames(double_CVS_Matrix)[1]
+    }
   }
   #list(匹配序列号=x, 活用形=Conjugates_Matrix, 子母サカ=CVS_Matrix)
-  基本形<-objects_res[, 8]
+  基本形<-ifelse(num_objects>1, objects_res[, 8], objects_res[8])
   活用形<-types[apply(Conjugates_Matrix, 1, fun_0)]
   匹配序列号<-x
   三阶粒度=data.frame(浅层标签="動詞",
                       中层标签=paste("動詞", 活用形, sep="_"),
-                      深层标签=paste(基本形, 活用形, sep="_")
-  )
+                      深层标签=paste(基本形, 活用形, sep="_"))
   list(匹配序列号=匹配序列号, 三阶粒度=三阶粒度)
 }
