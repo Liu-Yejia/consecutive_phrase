@@ -1,0 +1,3377 @@
+#----
+fun_Continuum_Searcher<-function(x){
+  dif<-x[-1]-x[-length(x)]
+  l<-rle(dif)$l
+  v<-rle(dif)$v
+  end_pos<-cumsum(l)
+  start_pos<-end_pos-l+1
+  res<-cbind(x[start_pos[which(v==1)]], x[end_pos[which(v==1)]+1])
+  if(is.null(nrow(res))!=TRUE&nrow(res)!=0){
+    colnames(res)<-c("Start", "End")
+    rownames(res)<-paste0("No.", 1:nrow(res))
+    return(res)
+  }else{
+    return(0)
+  }
+}
+#输入一条各元素为字符串的向量，将它们按顺序粘起来之后输出。
+fun_InVec_adhere<-function(vec, sep="_"){
+  library(stringr)
+  len<-length(vec)
+  res<-vec[1]
+  for(i in 2:len){
+    if(vec[i]!=""){
+      res<-str_c(res, vec[i], sep=sep)
+    }else{
+      break
+    }
+  }
+  return(res)
+}  #对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
+#若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
+fun_glue<-function(x,direction=1,sep="_"){
+  if(is.null(dim(x))){
+    len<-length(x)
+    total<-x[1]
+    for(i in 2:len){
+      total<-paste(total,x[i],sep=sep)
+    }
+  }else{
+    dimen<-switch(direction,
+                  "1"=ncol(x),
+                  "2"=nrow(x))
+    if(direction==1){
+      total<-x[,1]
+      for(i in 2:dimen){
+        total<-str_c(total, x[,i], sep=sep)
+      }
+    }else{
+      total<-x[1,]
+      for(i in 2:dimen){
+        total<-str_c(total, x[i,], sep=sep)
+      }
+    }
+  }
+  return(total)
+}
+fun_cabocha<-function(input){
+  library(stringr)
+  input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+  command<-paste("echo", input, "| cabocha")
+  completed<-command%>%system(intern=TRUE)%>%str_replace_all(" +", "")%>%
+    str_replace_all("-+.+$", "")
+  return(completed[-length(completed)])
+  #num_phrase_patterns<-length(completed)
+}
+fun_KNP<-function(input){
+  library(stringr)
+  fun_glue<-function(x,direction=1,sep="//"){
+    if(is.null(dim(x))){
+      len<-length(x)
+      total<-x[1]
+      for(i in 2:len){
+        total<-paste(total,x[i],sep=sep)
+      }
+    }else{
+      dimen<-switch(direction,
+                    "1"=ncol(x),
+                    "2"=nrow(x))
+      if(direction==1){
+        total<-x[,1]
+        for(i in 2:dimen){
+          total<-str_c(total, x[,i], sep=sep)
+        }
+      }else{
+        total<-x[1,]
+        for(i in 2:dimen){
+          total<-str_c(total, x[i,], sep=sep)
+        }
+      }
+    }
+    return(total)
+  }
+  input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&abcdefghijklmnopqrstuvwxyz()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ（）", input)
+  Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
+  if(length(Punctuation_Marks)!=0){#至少含1个顿/句号
+    Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+    Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+    final_res<-rep("", 2)
+    len<-length(Rebuilt_Parts)
+    for(i in 1:len){
+      temp_input<-Rebuilt_Parts[i]
+      command<-paste0("echo ", temp_input, "|jumanpp|knp")
+      temporary_res<-system(command, intern=TRUE)
+      num_morphemes<-length(temporary_res)
+      result<-rep("", num_morphemes-2)#掐头去尾
+      for(j in 2:(num_morphemes-1)){
+        result[j-1]<-temporary_res[j]%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
+      }
+      result<-str_split_fixed(result, pattern=" ", n=2)
+      #将连续n (n>=2) 个被判定为“体言”的文节合并为1个文节，以应对像“新型コロナウイルス”这样的复合名词
+      if(any(result[, 2]=="体言")){
+        substantive_positions<-which(result[, 2]=="体言"&str_detect(result[, 1], "^(?!.*から$).*$"))
+        len_sub<-length(substantive_positions)
+        if(len_sub>1){
+          dif<-substantive_positions[-1]-substantive_positions[-length(substantive_positions)]
+          if(any(dif==1)){
+            tres<-fun_Continuum_Searcher(substantive_positions)
+            for(j in 1:nrow(tres)){
+              起点<-tres[j, 1]
+              终点<-tres[j, 2]
+              连续块<-tres[j, 1]:tres[j, 2]
+              result[起点, 1]<-fun_InVec_adhere(result[连续块, 1], "")
+              result[连续块[-1], ]<-""
+            }
+            result<-result[-which(result[,1]==""), ]
+          }
+        }
+      }
+      final_res<-rbind(final_res, result)
+      cat(i, "\n")
+    }
+    final_res<-final_res[-1, 1]
+  }else{#不含顿/句号
+    new_input<-str_c(input, "、")#那就加个顿号
+    command<-paste("echo ", new_input, "|jumanpp|knp")
+    temporary_res<-system(command, intern=TRUE)%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
+    num_morphemes<-length(temporary_res)
+    result<-str_split_fixed(temporary_res, pattern=" ", n=2)
+    final_res<-result[-c(1, num_morphemes), ]
+    final_res[num_morphemes-2, 1]<-str_sub(final_res[num_morphemes-2, 1], end=-2)#把之前添加的“、”删掉
+    if(any(final_res[, 2]=="体言")){
+      substantive_positions<-which(final_res[, 2]=="体言"&str_detect(final_res[, 1], "^(?!.*から$).*$"))
+      len_sub<-length(substantive_positions)
+      if(len_sub>1){
+        dif<-substantive_positions[-1]-substantive_positions[-length(substantive_positions)]
+        if(any(dif==1)){
+          tres<-fun_Continuum_Searcher(substantive_positions)
+          for(i in 1:nrow(tres)){
+            起点<-tres[i, 1]
+            终点<-tres[i, 2]
+            连续块<-tres[i, 1]:tres[i, 2]
+            final_res[起点, 1]<-fun_InVec_adhere(final_res[连续块, 1], "")
+            final_res[连续块[-1], ]<-""
+          }
+          final_res<-final_res[-which(final_res[,1]==""), 1]
+        }
+      }
+    }
+  }
+  return(as.vector(final_res))
+}
+fun_0<-function(x){
+  return(which(x!=0))
+}#临时函数，输入为向量，输出其中非零元素的位置
+fun_1<-function(X, y){
+  cn<-colnames(x)
+  reurn(cn[y])
+}#输入X为矩阵（带列名），y为向量（其元素为正整数，且均小于等于X的列数）；输出y中元素对应的列名。该函数只向第一参数索取列名，无关其他。
+Analytic_MeCab_429<-function(input){
+  library(stringr)
+  if(1){
+    fun_InVec_adhere<-function(vec, sep=""){
+      library(stringr)
+      len<-length(vec)
+      res<-vec[1]
+      for(i in 2:len){
+        if(vec[i]!="") res<-str_c(res, vec[i], sep=sep)
+        else break
+      }
+      return(res)
+    }
+    fun_rough_merge<-function(X, position=2, anchor_label="名詞"){
+      fun_temp<-function(x)length(unique(x))
+      Summary<-rle(X[,position])
+      len<-Summary$lengths
+      val<-Summary$values
+      end<-cumsum(len)
+      start<-end-len+1
+      matched<-which(val==anchor_label&len>=2)
+      num_matched<-length(matched)
+      if(num_matched>=1){
+        res<-list()
+        # find every Continuum which its 2nd lable is "anchor_label",
+        # then store its row numbers in correspond element of res
+        for(i in 1:num_matched) res[[i]]<-start[matched[i]]:end[matched[i]]
+        # for each selected Continuum, compress it from up and down.
+        tag_positions<-2:7
+        surface_pronunciations<-c(1, 8:10)
+        for(i in 1:num_matched){
+          elements<-res[[i]]# Stored series number of rows stored in current Continnum.
+          num_elements<-length(elements)# Length of current.
+          #inconsistencies<-tag_positions[which(apply(X[elements, tag_positions], 2, fun_temp)!=1)]
+          #if(length(inconsistencies)!=0){
+          #  X[elements[1], inconsistencies]<-apply(X[elements, inconsistencies], 2, fun_InVec_adhere)
+          #}
+          X[elements[1], surface_pronunciations]<-apply(X[elements, surface_pronunciations], 2, fun_InVec_adhere)
+          X[elements[-1], 1]<-""
+        }
+        return(X[-which(X[,1]==""),])
+      }
+      return(X)
+    }
+    fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
+      #----
+      fun_Trivial_Prefix<-function(x, y){
+        library(stringr)
+        #本函数用来适切地将“接头辞”行和后接的“名词”行合并为1行
+        #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+        #x为“接头辞”行，y为后接的“名词”行
+        Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+        Res<-rep("", 15)#最终输出的结果
+        Simple_Combine<-c(1:3, 14, 15)#简单结合
+        Keep_the_Latter<-c(4:11)#仅保留后者
+        Padding_Combine<-13#中间插入自定义分隔符后结合
+        Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+        Res[Keep_the_Latter]<-Ore[2,Keep_the_Latter]
+        Res[Padding_Combine]<-fun_glue(Ore[,Padding_Combine], direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+        #for Tricky One: 12
+        if(1){
+          Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+          Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+          Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+        }
+        return(Res)
+      }
+      fun_Trivial_Suffix<-function(x, y){
+        library(stringr)
+        #本函数用来适切地将“名词”行和后接的“接尾词”行合并为1行
+        #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+        #x为“名词”行，y为后接的“接尾词”行
+        Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+        Res<-rep("", 15)#最终输出的结果
+        Simple_Combine<-c(1:3, 14, 15)#简单结合
+        Keep_the_Latter<-c(4:11)#仅保留前者
+        Padding_Combine<-13#中间插入自定义分隔符后结合
+        Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+        Res[Keep_the_Latter]<-Ore[1,Keep_the_Latter]
+        Res[Padding_Combine]<-Ore[,Padding_Combine]%>%fun_glue(direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+        #for Tricky One: 12
+        if(1){
+          Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+          Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+          #Res[12]<-fun_InVec_adhere(vec=c("代表表記:", Chinese_Characters, "/", Hiragana), sep="")
+          Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+        }
+        return(Res)
+      }
+      #----
+      #x是已经过名词合并的MeCab或Juman++的形态素解析结果；参数mode用来指定输入的形态素结果是来自MeCab或是Juman++。
+      #参数target用来指定和“名词”行合并的是“接头辞”还是“接尾辞”（前者为"Pre"，后者为"Suf"）
+      if(target=="Pre"){
+        if(mode=="M"){
+          a<-which(x[,2]=="接頭詞")#被判定为“接头辞”的形态素的序列号
+          Prefix_lines<-a[which(x[a+1,2]=="名詞")]#“接头辞”形态素中，后接“名词”形态素的序列号
+          Noun_lines<-Prefix_lines+1#接头词后的名词行编号
+          len<-length(Prefix_lines)#匹配成功的个数
+          if(len!=0){
+            for(i in 1:len){
+              Current_PrefixLine<-x[Prefix_lines[i], ]#现在的“接头辞”行
+              Current_NounLine<-x[Noun_lines[i], ]#现在的“名词”行
+              Fused<-paste0(Current_PrefixLine, Current_NounLine)#把（当前）“接头辞”行与后续的“名词”行的对应元素粘起来
+              Fused[c(2,3)]<-Current_NounLine[c(2,3)]#将其中第2元素（品词大分类），第3元素（品词小分类）替换为“名词”行的对应元素
+              x[Noun_lines[i],]<-Fused#用混合好了的行替换接头词行后的名词行
+            }
+            new_x<-x[-Prefix_lines, ]#删除所有接头词行
+          }else{
+            new_x<-x
+          }
+        }else
+          if(mode=="J"){
+            b<-which(x[,4]=="接頭辞")#定位接头辞的行编号
+            Prefix_lines<-b[which(x[b+1,4]=="名詞")]#过滤，仅保留后接名词的接头辞行的编号
+            Noun_lines<-Prefix_lines+1
+            len<-length(Prefix_lines)
+            if(len!=0){
+              for(i in 1:len){
+                Current_PrefixLine<-x[Prefix_lines[i],]
+                Current_NounLine<-x[Noun_lines[i],]
+                Fused<-fun_Trivial_Prefix(Current_PrefixLine, Current_NounLine)
+                x[Noun_lines[i],]<-Fused#用处理好的行替换当前的名词行
+              }
+              new_x<-x[-Prefix_lines,]#删去接头辞行
+            }else{
+              new_x<-x
+            }
+          }else{
+            cat("mode只能为M或J。\n")
+          }
+        return(new_x)
+      }
+      if(target=="Suf"){
+        if(mode=="J"){
+          b<-which(x[,4]=="接尾辞")#定位接尾辞行
+          Suffix_lines<-b[which(x[b-1,4]=="名詞")]#过滤，仅保留前接名词的接尾辞的行编号
+          Noun_lines<-Suffix_lines-1
+          len<-length(Suffix_lines)
+          if(len!=0){
+            for(i in 1:len){
+              Current_NounLine<-x[Noun_lines[i],]
+              Current_SuffixLine<-x[Suffix_lines[i],]
+              Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
+              x[Noun_lines[i],]<-Fused
+            }
+            new_x<-x[-Suffix_lines,]
+          }else{
+            new_x<-x
+          }
+        }else{
+          cat("在target为“Suf”的情况下，mode只能为J。\n")
+        }
+        return(new_x)
+      }
+    }
+    Call_MeCab<-function(input){
+      #input<-Rebuilt_Parts[i]
+      pseudo_input<-paste0("！", input)
+      #pseudo_input
+      command_M<-paste("echo", pseudo_input, "| mecab -b 5242880")
+      res_M<-system(command_M, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_replace_all("\\t",",")%>%str_split_fixed(pattern=",",10)
+      res_M<-res_M%>%fun_rough_merge()
+      res_M<-res_M[-1,]
+    }
+  }
+  input<-chartr(old="&()", new="＆（）", input)
+  Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
+  Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+  Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+  len_sentences<-length(Non_Punctuation_Marks)
+  Warehouse<-list()
+  for(i in 1:len_sentences) Warehouse[[i]]<-Rebuilt_Parts[i]%>%Call_MeCab()
+  Final_Result<-Warehouse[[1]]
+  if(len_sentences>=2){
+    for(i in 2:len_sentences) Final_Result<-rbind(Final_Result, Warehouse[[i]])
+  }
+  Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result)
+  Final_Result<-rbind(Final_Result, matrix("", nrow=3, ncol=10))
+  #对于表停顿时间长度的标点统一为“、”或“。”，对于表引用的标点一律删除。
+  if(1){
+    #convert quasi-commas and quasi-periods to commas and periods
+    quasi_commas<-which(str_detect(Final_Result[,1], "^(・|，|ーー|ー|,)$"))
+    quasi_periods<-which(str_detect(Final_Result[,1], "^(．|\\.|…|……|…。|……。|？|！|!)$"))
+    Final_Result[quasi_commas, 1]<-"、"
+    Final_Result[quasi_periods,1]<-"。"
+    #remove quotation marks
+    quotation_marks<-which(str_detect(Final_Result[,1], "^(「|」|『|』|（|）|(|)|[|]|【|】|［|］|〈|〉|〔|〕|｛|｝|“|”|\"|‘|’|\')$"))
+    Final_Result<-Final_Result[-quotation_marks,]
+  }
+  #厘出“形容動詞”
+  if(1){
+    形容動詞位置<-which(Final_Result[, 3]=="形容動詞語幹")
+    Final_Result[形容動詞位置, 2]<-"形容動詞"
+    Final_Result[形容動詞位置, 3]<-"語幹"
+  }
+  return(Final_Result)
+}
+fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI"){
+  #输入为被压缩为一个元素的字符串，输出用Juman++进行形态素解析的结果（矩阵），default为进行连续名词合并。
+  #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
+  #然后使用Juman++对每个短句进行形态素解析，最后按照“一个（无句读点）短句+原文中后接句读点”的方式叠加等长度向量作为结果输出
+  if(1){
+    #input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+    Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
+    Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+    Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+    len_sentences<-length(Non_Punctuation_Marks)
+    Warehouse<-list()
+    for(i in 1:len_sentences){
+      Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=0)
+      cat(i, "\n")
+    }
+    #Final_Result<-rbind(Warehouse[[1]], Analyzed_Results_for_Punctuation_Marks[1,])
+    Final_Result<-Warehouse[[1]]
+    if(length(Warehouse)>=2){
+      for(i in 2:len_sentences){
+        #Final_Result<-rbind(Final_Result, Warehouse[[i]], Analyzed_Results_for_Punctuation_Marks[i,])
+        Final_Result<-rbind(Final_Result, Warehouse[[i]])
+      }
+    }
+  }
+  if(0){
+    prefix_morphemes<-which(Final_Result[, 4]=="接頭辞")
+    if(length(prefix_morphemes)!=0 & prefix_mask==TRUE){
+      Final_Result<-Final_Result[-prefix_morphemes,]
+    }  
+  }
+  Final_Result[,1:16]<-str_replace_all(Final_Result[,1:16], pattern="\"", replacement="")
+  #old_FR<-Final_Result
+  Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J")
+  Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J", target="Suf")
+  #将“形容動詞”标记出来
+  形容動詞位置<-which(Final_Result[, 4]=="形容詞"&Final_Result[, 8]=="ナ形容詞")
+  Final_Result[形容動詞位置, 4]<-"形容動詞"
+  if(mode=="XII"){
+    Final_Result<-Final_Result[,-c(5, 7, 9, 11)]
+  }
+  return(Final_Result)
+}
+fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
+  #----
+  fun_Trivial_Prefix<-function(x, y){
+    library(stringr)
+    #本函数用来适切地将“接头辞”行和后接的“名词”行合并为1行
+    #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+    #输入x,y为两条长度均为含16个元素的向量,且为处理后的Juman++形态素解析结果（更新于R3/3/10）
+    #x为“接头辞”行，y为后接的“名词”行
+    Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+    Res<-rep("", 16)#最终输出的结果
+    Simple_Combine<-c(1:3, 14, 15)#简单结合
+    Keep_the_Latter<-c(4:11)#仅保留后者
+    Padding_Combine<-13#中间插入自定义分隔符后结合
+    Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+    Res[Keep_the_Latter]<-Ore[2,Keep_the_Latter]
+    Res[Padding_Combine]<-fun_glue(Ore[,Padding_Combine], direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+    #for Tricky One: 12
+    if(1){
+      Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+      Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+      Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+    }
+    return(Res)
+  }
+  fun_Trivial_Suffix<-function(x, y){
+    library(stringr)
+    #本函数用来适切地将“名词”行和后接的“接尾词”行合并为1行
+    #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+    #x为“名词”行，y为后接的“接尾词”行
+    Ore<-rbind(x, y)#rbind后的待处理矩阵（2行16列）
+    Res<-rep("", 16)#最终输出的结果
+    Simple_Combine<-c(1:3, 14, 15)#简单结合
+    Keep_the_Latter<-c(4:11)#仅保留前者
+    Padding_Combine<-13#中间插入自定义分隔符后结合
+    Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+    Res[Keep_the_Latter]<-Ore[1,Keep_the_Latter]
+    Res[Padding_Combine]<-Ore[,Padding_Combine]%>%fun_glue(direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+    #for Tricky One: 12
+    if(1){
+      Ore[which(str_detect(Ore[, 12], "^(?!.*代表表記).*")), 12]<-"代表表記:/"
+      Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+      Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+      Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+    }
+    return(Res)
+  }
+  #x<-Current_NounLine; y<-Current_SuffixLine
+  #(temp_res<-fun_Trivial_Suffix(x=x, y=y))
+  #----
+  #x是已经过名词合并的MeCab或Juman++的形态素解析结果；参数mode用来指定输入的形态素结果是来自MeCab或是Juman++。
+  #参数target用来指定和“名词”行合并的是“接头辞”还是“接尾辞”（前者为"Pre"，后者为"Suf"）
+  if(target=="Pre"){
+    if(mode=="M"){
+      a<-which(x[,2]=="接頭詞")#被判定为“接头辞”的形态素的序列号
+      Prefix_lines<-a[which(x[a+1,2]=="名詞")]#“接头辞”形态素中，后接“名词”形态素的序列号
+      Noun_lines<-Prefix_lines+1
+      len<-length(Prefix_lines)#匹配成功的个数
+      if(len!=0){
+        for(i in 1:len){
+          Current_PrefixLine<-x[Prefix_lines[i],]#现在的“接头辞”行
+          Current_NounLine<-x[Noun_lines[i],]#现在的“名词”行
+          Fused<-paste0(Current_PrefixLine, Current_NounLine)#把“接头辞”行与后续的“名词”行的对应元素粘起来
+          Fused[c(2,3)]<-Current_NounLine[c(2,3)]#将其中第2元素（品词大分类），第3元素（品词小分类）替换为“名词”行的对应元素
+          x[Noun_lines[i],]<-Fused
+        }
+        new_x<-x[-Prefix_lines,]
+      }else{
+        new_x<-x
+      }
+    }else 
+      if(mode=="J"){
+        b<-which(x[,4]=="接頭辞")
+        Prefix_lines<-b[which(x[b+1,4]=="名詞")]
+        Noun_lines<-Prefix_lines+1
+        len<-length(Prefix_lines)
+        if(len!=0){
+          for(i in 1:len){
+            Current_PrefixLine<-x[Prefix_lines[i],]
+            Current_NounLine<-x[Noun_lines[i],]
+            Fused<-fun_Trivial_Prefix(Current_PrefixLine, Current_NounLine)
+            x[Noun_lines[i],]<-Fused
+          }
+          new_x<-x[-Prefix_lines,]
+        }else{
+          new_x<-x
+        }
+      }else{
+        cat("mode只能为M或J。\n")
+      }
+    return(new_x)
+  }
+  if(target=="Suf"){
+    if(mode=="J"){
+      b<-which(x[,4]=="接尾辞")
+      Suffix_lines<-b[which(x[b-1,4]=="名詞")]
+      Noun_lines<-Suffix_lines-1
+      len<-length(Suffix_lines)
+      if(len!=0){
+        for(i in 1:len){
+          #i<-3
+          #cat(i, "\n")
+          Current_NounLine<-x[Noun_lines[i],]
+          Current_SuffixLine<-x[Suffix_lines[i],]
+          Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
+          x[Noun_lines[i],]<-Fused
+          #cat(i, "\n")
+        }
+        new_x<-x[-Suffix_lines,]
+      }else{
+        new_x<-x
+      }
+    }else{
+      cat("在target为“Suf”的情况下，mode只能为J。\n")
+    }
+    return(new_x)
+  }
+}
+fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自制函数fun_MeCab的输出（10列矩阵）
+  #最基础的几个自制函数
+  library(stringr)
+  if(1){
+    #临时函数，输入为向量，输出其中非零元素的位置
+    fun_0<-function(x){
+      return(which(x!=0))
+    }
+    #输入X为矩阵（带列名），y为向量（其元素为正整数，且均小于等于X的列数）；输出y中元素对应的列名。该函数只向第一参数索取列名，无关其他。
+    fun_1<-function(X, y){
+      cn<-colnames(x)
+      reurn(cn[y])
+    }  
+  }
+  x<-which(material[,2]=="動詞")
+  objects_res<-material[x,]
+  num_objects<-length(x)
+  #生成用来存储结果的矩阵
+  #由于MeCab词素解析结果的精度存在不小的问题，此自制函数将输出矩阵由3个减为2个，略去“态”矩阵。
+  if(1){
+    Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)#活用形矩阵
+    types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
+    colnames(Conjugates_Matrix)<-types
+    if(num_objects>1){
+      rownames(Conjugates_Matrix)<-objects_res[, 8]
+    }else{
+      rownames(Conjugates_Matrix)<-objects_res[8]
+    }
+    #由于MeCab的解析结果并不具有动词的“态”信息，故略去“态”矩阵
+    if(0){
+      Voices_Matrix<-matrix(0, nrow=num_objects, ncol=7)#态矩阵
+      colnames(Voices_Matrix)<-c("能動態", "可能態", "意志態", "使役態", "受動態・自発態・尊敬態", "使役受動態", "交互態")
+      rownames(Voices_Matrix)<-objects_res[,8]
+    }
+    CVS_Matrix<-matrix(0, nrow=num_objects, ncol=4)#“子母サカ”矩阵
+    colnames(CVS_Matrix)<-c("子音動詞", "母音動詞", "サ行変格活用動詞", "カ行変格活用動詞")
+    if(num_objects>1){
+      rownames(CVS_Matrix)<-objects_res[, 8]
+    }else{
+      rownames(CVS_Matrix)<-objects_res[8]
+    }
+  }
+  #填充<活用形>矩阵
+  if(1){
+    if(num_objects>1){
+      #objects_res[,7]
+      colnames(Conjugates_Matrix)
+      Conjugates_Matrix[which(objects_res[,7]=="未然ヌ接続"), 1]<-1
+      Conjugates_Matrix[which(str_detect(objects_res[,7], "^未然(?!.*ヌ接続).*$")), 2]<-1
+      #Conjugates_Matrix[which(objects_res[,7]=="連用タ接続"), 3]<-1
+      Conjugates_Matrix[which(str_detect(objects_res[, 7], "^連用.+$")), 3]<-1
+      if(1){
+        basic<-which(objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
+        basic_num<-x[basic]#在全体词素中的序列号
+        series_end_form<-basic[sort(union(which(str_detect(material[basic_num+1, 2], "^(記号|助詞)$")), which(material[basic_num+1, 4]=="助動詞語幹")))]
+        series_attributive<-setdiff(basic, series_end_form)
+      }
+      Conjugates_Matrix[series_attributive, 4]<-1
+      Conjugates_Matrix[series_end_form, 5]<-1
+      Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
+      Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1
+    }else{
+      double_objects_res<-rbind(objects_res, objects_res)
+      double_x<-rep(x, 2)
+      double_Conjugates_Matrix<-rbind(Conjugates_Matrix, Conjugates_Matrix)
+      double_Conjugates_Matrix[which(double_objects_res[,7]=="未然ヌ接続"), 1]<-1
+      double_Conjugates_Matrix[which(str_detect(double_objects_res[,7], "^未然(?!.*ヌ接続).*$")), 2]<-1
+      double_Conjugates_Matrix[which(double_objects_res[,7]=="連用タ接続"), 3]<-1
+      if(1){
+        basic<-which(double_objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
+        basic_num<-double_x[basic]#在全体词素中的序列号
+        series_end_form<-basic[sort(union(which(str_detect(material[basic_num+1, 2], "^(記号|助詞)$")), which(material[basic_num+1, 4]=="助動詞語幹")))]
+        series_attributive<-setdiff(basic, series_end_form)
+      }
+      double_Conjugates_Matrix[series_attributive, 4]<-1
+      double_Conjugates_Matrix[series_end_form, 5]<-1
+      double_Conjugates_Matrix[which(double_objects_res[,7]=="仮定形"),6]<-1
+      double_Conjugates_Matrix[which(str_detect(double_objects_res[,7], "^命令.+$")), 7]<-1
+      Conjugates_Matrix<-t(double_Conjugates_Matrix[1, ])
+      rownames(Conjugates_Matrix)<-rownames(double_Conjugates_Matrix)[1]
+    }
+  }
+  #填充<子母サカ>矩阵
+  if(1){
+    if(num_objects>1){
+      CVS_Matrix[str_detect(objects_res[,6], "^一段.*$"), 1]<-1
+      CVS_Matrix[str_detect(objects_res[,6], "^五段.*$"), 2]<-1
+      CVS_Matrix[str_detect(objects_res[,6], "^サ変.*$"), 3]<-1
+      CVS_Matrix[str_detect(objects_res[,6], "^カ変.*$"), 4]<-1
+    }else{
+      double_CVS_Matrix<-rbind(CVS_Matrix, CVS_Matrix)
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^一段.*$"), 1]<-1
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^五段.*$"), 2]<-1
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^サ変.*$"), 3]<-1
+      double_CVS_Matrix[str_detect(double_objects_res[,6], "^カ変.*$"), 4]<-1
+      CVS_Matrix<-t(double_CVS_Matrix[1, ])
+      rownames(CVS_Matrix)<-rownames(double_CVS_Matrix)[1]
+    }
+  }
+  #list(匹配序列号=x, 活用形=Conjugates_Matrix, 子母サカ=CVS_Matrix)
+  基本形<-ifelse(num_objects>1, objects_res[, 8], objects_res[8])
+  活用形<-types[apply(Conjugates_Matrix, 1, fun_0)]
+  匹配序列号<-x
+  三阶粒度=data.frame(浅层标签="動詞",
+                      中层标签=paste("動詞", 活用形, sep="_"),
+                      深层标签=paste(基本形, 活用形, sep="_"))
+  list(匹配序列号=匹配序列号, 三阶粒度=三阶粒度)
+}
+fun_Adjective_Conjugation_51<-function(x, denominator="morpheme"){#xはMeCabの解析結果（形態素数×10列）；分母（denominator）可选：“morpheme”为形态素总数，“adjective”为形容词形态素总数。
+  if(denominator!="morpheme"&denominator!="adjective")stopifnot("参数错误！参数denominator的赋值只能为“morpheme”或“adjective”。")
+  #自作関数
+  if(0){
+    #输入为Juman++或MeCab的形态素解析结果，将其中的“接头辞/词”或“接尾词”形态素与其后方（前方）的名词体言连结成1个形态素。
+    fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
+      #----
+      fun_Trivial_Prefix<-function(x, y){
+        library(stringr)
+        #本函数用来适切地将“接头辞”行和后接的“名词”行合并为1行
+        #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+        #x为“接头辞”行，y为后接的“名词”行
+        Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+        Res<-rep("", 15)#最终输出的结果
+        Simple_Combine<-c(1:3, 14, 15)#简单结合
+        Keep_the_Latter<-c(4:11)#仅保留后者
+        Padding_Combine<-13#中间插入自定义分隔符后结合
+        Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+        Res[Keep_the_Latter]<-Ore[2,Keep_the_Latter]
+        Res[Padding_Combine]<-fun_glue(Ore[,Padding_Combine], direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+        #for Tricky One: 12
+        if(1){
+          Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+          Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+          Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+        }
+        return(Res)
+      }
+      fun_Trivial_Suffix<-function(x, y){
+        library(stringr)
+        #本函数用来适切地将“名词”行和后接的“接尾词”行合并为1行
+        #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+        #x为“名词”行，y为后接的“接尾词”行
+        Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+        Res<-rep("", 15)#最终输出的结果
+        Simple_Combine<-c(1:3, 14, 15)#简单结合
+        Keep_the_Latter<-c(4:11)#仅保留前者
+        Padding_Combine<-13#中间插入自定义分隔符后结合
+        Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+        Res[Keep_the_Latter]<-Ore[1,Keep_the_Latter]
+        Res[Padding_Combine]<-Ore[,Padding_Combine]%>%fun_glue(direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+        #for Tricky One: 12
+        if(1){
+          Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+          Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+          #Res[12]<-fun_InVec_adhere(vec=c("代表表記:", Chinese_Characters, "/", Hiragana), sep="")
+          Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+        }
+        return(Res)
+      }
+      #----
+      #x是已经过名词合并的MeCab或Juman++的形态素解析结果；参数mode用来指定输入的形态素结果是来自MeCab或是Juman++。
+      #参数target用来指定和“名词”行合并的是“接头辞”还是“接尾辞”（前者为"Pre"，后者为"Suf"）
+      if(target=="Pre"){
+        if(mode=="M"){
+          a<-which(x[,2]=="接頭詞")#被判定为“接头辞”的形态素的序列号
+          Prefix_lines<-a[which(x[a+1,2]=="名詞")]#“接头辞”形态素中，后接“名词”形态素的序列号
+          Noun_lines<-Prefix_lines+1
+          len<-length(Prefix_lines)#匹配成功的个数
+          if(len!=0){
+            for(i in 1:len){
+              Current_PrefixLine<-x[Prefix_lines[i],]#现在的“接头辞”行
+              Current_NounLine<-x[Noun_lines[i],]#现在的“名词”行
+              Fused<-paste0(Current_PrefixLine, Current_NounLine)#把“接头辞”行与后续的“名词”行的对应元素粘起来
+              Fused[c(2,3)]<-Current_NounLine[c(2,3)]#将其中第2元素（品词大分类），第3元素（品词小分类）替换为“名词”行的对应元素
+              x[Noun_lines[i],]<-Fused
+            }
+            new_x<-x[-Prefix_lines,]
+          }else{
+            new_x<-x
+          }
+        }else 
+          if(mode=="J"){
+            b<-which(x[,4]=="接頭辞")
+            Prefix_lines<-b[which(x[b+1,4]=="名詞")]
+            Noun_lines<-Prefix_lines+1
+            len<-length(Prefix_lines)
+            if(len!=0){
+              for(i in 1:len){
+                Current_PrefixLine<-x[Prefix_lines[i],]
+                Current_NounLine<-x[Noun_lines[i],]
+                Fused<-fun_Trivial_Prefix(Current_PrefixLine, Current_NounLine)
+                x[Noun_lines[i],]<-Fused
+              }
+              new_x<-x[-Prefix_lines,]
+            }else{
+              new_x<-x
+            }
+          }else{
+            cat("mode只能为M或J。\n")
+          }
+        return(new_x)
+      }
+      if(target=="Suf"){
+        if(mode=="J"){
+          b<-which(x[,4]=="接尾辞")
+          Suffix_lines<-b[which(x[b-1,4]=="名詞")]
+          Noun_lines<-Suffix_lines-1
+          len<-length(Suffix_lines)
+          if(len!=0){
+            for(i in 1:len){
+              Current_NounLine<-x[Noun_lines[i],]
+              Current_SuffixLine<-x[Suffix_lines[i],]
+              Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
+              x[Noun_lines[i],]<-Fused
+            }
+            new_x<-x[-Suffix_lines,]
+          }else{
+            new_x<-x
+          }
+        }else{
+          cat("在target为“Suf”的情况下，mode只能为J。\n")
+        }
+        return(new_x)
+      }
+    }
+  }
+  #前処理
+  if(1){
+    #x<-x[-which(x[,1]==""),]
+    #x<-x%>%fun_fusion_PrefixOrSuffix_and_Noun()
+    #括弧類<-which(str_detect(string=x[,1], pattern="（|）|「|」|『|』|【|】|［|］"))
+    #if(length(括弧類)!=0)x<-x[-括弧類,]
+    matched<-which(x[, 2]=="形容詞")
+  }
+  if(length(matched)!=0){
+    #コア部分（活用形割り当て＆集計）
+    #口語体
+    if(1){
+        the_imperfect_form<-matched[which(str_detect(x[matched, 1], "かろ$"))]#未然形
+        the_continuative_form<-matched[which(str_detect(x[matched, 1], "かっ$|く$"))]#連用形
+        the_imperfect_form_Bungotai<-the_continuative_form[which(str_detect(x[the_continuative_form], "く$")&x[the_continuative_form+1, 8]=="ば"&str_detect(x[the_continuative_form+2, 8], "^(?!た[んり]).*$"))]#文語体形容詞の未然形の片割れである"（シ）クバ"が誤ってこっちのカテゴリーにカウントされることを防止、なお、「なく、ばたんと…」みたいな特殊な例文をも考慮した…辛かった。
+        the_continuative_form<-setdiff(the_continuative_form, the_imperfect_form_Bungotai)#形容詞の文語体未然形活用にマッチした携帯素番号を取り除く。
+        provisional<-matched[which(str_detect(x[matched, 1], "[いイ]$"))]#終止形か連体形か分けるために一時的に混ぜておく．
+        the_end_form<-NULL#終止形（仮）
+        the_attributive_form<-provisional[which(x[provisional+1, 2]=="名詞")]#連体形（仮）
+        provisional<-setdiff(provisional, the_attributive_form)#把确定是“連体形”的形态素编号从混合向量中删去。
+        if(length(provisional)!=0){
+          the_end_form<-provisional[which(str_detect(x[provisional+1, 2], "助詞|助動詞|接続詞|記号"))]#未完成の終止形集合
+          the_attributive_form<-c(the_attributive_form, provisional[which(str_detect(x[provisional+1, 2], "副詞|連体詞|接頭詞|感動詞|動詞"))])#未完成の連体形集合
+          followed_by_adjective<-provisional[which(x[provisional+1, 2]=="形容詞")]
+          if(length(followed_by_adjective)!=0){
+            followed_by_noun<-followed_by_adjective[which(x[followed_by_adjective+2, 2]=="名詞")]#形容詞+形容詞+名詞
+            followed_by_mark<-followed_by_adjective[which(x[followed_by_adjective+2, 2]=="記号")]#形容詞+形容詞+記号
+            followed_by_particle<-followed_by_adjective[which(x[followed_by_adjective+2, 2]=="助詞")]#形容詞+形容詞+助詞
+            the_end_form<-c(the_end_form, followed_by_mark, followed_by_particle)#終止形集合を補完．
+            the_attributive_form<-c(the_attributive_form, followed_by_noun)#連体形集合を補完．
+          }
+        }
+        the_conditional_form<-matched[which(str_detect(x[matched, 1], "けれ$"))]#仮定形
+        the_stem<-matched[which(x[matched, 7]=="ガル接続")]#語幹
+        #既にカテゴライズされた形態素をmatchedプールから取り除き、次なる割り当てをスピードアップする。
+        temp_matched<-c(the_imperfect_form, the_continuative_form, the_imperfect_form_Bungotai, the_end_form, the_attributive_form, the_conditional_form, the_stem)
+        matched_2<-setdiff(matched, temp_matched)      
+      }
+    #文語体
+    if(1){
+      ##各活用形に割り当て（フェーズ壱）
+      if(1){
+        the_imperfect_form_bungo<-c(matched_2[which(x[matched_2, 7]=="未然ヌ接続")], the_imperfect_form_Bungotai)#文語未然形
+        the_end_form_bungo<-matched_2[which(x[matched_2, 7]=="文語基本形")]#文語終止形
+        the_attributive_form_bungo<-matched_2[which(x[matched_2, 7]=="体言接続"&x[matched_2, 1]!="ぽき")]#文語連体形
+        the_imperative_form_bungo<-matched_2[which(x[matched_2, 7]=="命令ｅ")]#文語命令形
+      }
+      ##MeCabデフォルト辞書の不完全ゆえの幾つかの特殊なケース
+      if(1){
+        #特殊ケースごとに対策を練る。
+        if(1){
+          special_1<-which(x[,1]=="しから");special_1<-special_1[which(str_detect(x[special_1-1, 1], "[らけ]$")&str_detect(x[special_1+1, 1], "^ぬ"))]#「彼らしからぬ…」と「けしからぬ」対策
+          special_2<-which(str_detect(x[,1], "^(奇|く|くす)し(き|くも)$"))#「奇しき」と「奇しくも」
+          if(length(special_2)!=0){
+            special_2_き<-special_2[which(str_detect(x[special_2, 1], "き$"))]#奇しき/くしき
+            special_2_く<-setdiff(special_2, special_2_き)#奇しくも/くしくも
+            if(length(special_2_く)!=0)the_continuative_form<-c(the_continuative_form, special_2_く)#把「奇しくも/くしくも」にマッチした形態素の通し番号を形容詞の口語連用形カテゴリーに入れる（長さが〇でなければ）．
+          }else{
+            special_2_き<-NULL->special_2_く#予め空のオブジェクトを用意する．
+          }
+          special_3<-which(str_detect(x[,1], "^あわよくば$"))
+          special_4<-which(str_detect(x[,1], "^[あ悪]しからず$"))
+          #「少し」およびその派生形態素を形容詞として扱う．
+          special_5<-which(str_detect(x[,1], "^(少|すこ)し[くも]?$"))
+          if(length(special_5)!=0){
+            next_き<-special_5[which(x[special_5, 1]=="き")]#少し_き
+            next_も<-c(special_5[which(x[special_5, 1]=="すこしも")], special_5[which(x[special_5, 1]=="少し"&x[special_5+1, 1]=="も")])#すこしも/少しも
+            next_く<-special_5[which(str_detect(x[special_5, 1], "^(少|すこ)しく$"))]#少しく/すこしく
+            special_5_stem<-setdiff(special_5, c(next_き, next_も, next_く))#ただの「少し/すこし」、後ろには何も余計な尾鰭がついていない。
+          }else{
+            next_き<-NULL->next_も
+            next_く<-NULL->special_5_stem#予め空のオブジェクトを用意する．
+          }
+          special_6<-which(x[, 1]=="けしからん")#「けしからん」は一つの形態素として認識されている。
+        }
+        #特殊ケースにヒットした分を補完する（フェーズ弍）．
+        if(1){
+          the_imperfect_form_bungo<-c(the_imperfect_form_bungo, special_1, special_3, special_4, special_6)#【らしからぬ・けしからぬ】(special_1), 【あわよくば】(special_3), 【あ/悪しからず】(special_4), 【けしからん】(special_6)にマッチした形態素番号を形容詞の文語未然形カテゴリーに入れる．
+          the_attributive_form_bungo<-c(the_attributive_form_bungo, special_2_き, next_き)#「奇しき/くしき」と「少しき/すこしき」に該当する形態素の通し番号を形容詞の文語連体形のカテゴリーに入れる．
+          the_end_form_bungo<-c(the_end_form_bungo, next_も, special_5_stem)#「少しも/すこしも」と何の尾鰭が付いていない「少し/すこし」にマッチした形態素の通し番号を形容詞の文語終止形カテゴリーに入れる．
+        }
+      }
+    }
+    #形容詞の口語体活用に対して，活用形ごとのベクトルの長さを測り，出力となるベクトルの各要素に充填し，名前付けする．
+    if(1){
+      Colloquial<-c(length(the_imperfect_form),#未然形
+                    length(the_continuative_form),#連用形
+                    length(the_end_form),#終止形
+                    length(the_attributive_form),#連体形
+                    length(the_conditional_form),#仮定形
+                    length(the_stem))#語幹
+      names(Colloquial)<-c("形容詞未然形（口語）", "形容詞連用形（口語）", "形容詞終止形（口語）", "形容詞連体形（口語）", "形容詞仮定形（口語）", "形容詞語幹")
+      kougo_number<-c(the_imperfect_form, the_continuative_form, the_end_form, the_attributive_form, the_conditional_form, the_stem)
+    }
+    #形容詞の文語体活用に対して，活用形ごとのベクトルの長さを測り，出力となるベクトルの各要素に充填し，名前付けする． 
+    if(1){
+      Bungo<-c(length(the_imperfect_form_bungo),#文語未然形
+               length(the_end_form_bungo),#文語終止形
+               length(the_attributive_form_bungo),#文語連体形
+               length(the_imperative_form_bungo))#文語命令形
+      names(Bungo)<-c("形容詞未然形（文語）", "形容詞終止形（文語）", "形容詞連体形（文語）", "形容詞命令形（文語）")
+      bungo_number<-c(the_imperfect_form_bungo, the_end_form_bungo, the_attributive_form_bungo, the_imperative_form_bungo)
+    }
+    #二つ列を持つベクトルセット（イマジナリー_2ベクトル）を作り、一列目に形容詞の原型を振る。
+    if(1){
+      total_number<-c(kougo_number, bungo_number)#マッチした全ての形態素の通し番号をプーリングする．
+      num_morphemes<-nrow(x)#测量输入MeCab解析结果所含的词素数
+      imaginary_2vectors<-matrix(nrow=num_morphemes, ncol=2)#生成1个列数为2的向量对象，第1列为以“い”接尾的形容词原形，第2列为其对应的活用形。
+      colnames(imaginary_2vectors)<-c("形容詞原形", "活用形")#赋列名
+      imaginary_2vectors[total_number, 1]<-x[total_number, 8]#将各形容词的原型赋给第1列
+    }
+    #填充假想向量的第二列
+    if(1){
+      #口語体
+      #----
+      imaginary_2vectors[the_imperfect_form, 2]<-"形容詞未然形（口語）"
+      imaginary_2vectors[the_continuative_form, 2]<-"形容詞連用形（口語）"
+      imaginary_2vectors[the_end_form, 2]<-"形容詞終止形（口語）"
+      imaginary_2vectors[the_attributive_form, 2]<-"形容詞連体形（口語）"
+      imaginary_2vectors[the_conditional_form, 2]<-"形容詞仮定形（口語）"
+      imaginary_2vectors[the_stem, 2]<-"形容詞語幹"
+      #----
+      #文語体
+      #----
+      imaginary_2vectors[the_imperfect_form_bungo, 2]<-"形容詞未然形（文語）"
+      imaginary_2vectors[the_end_form_bungo, 2]<-"形容詞終止形（文語）"
+      imaginary_2vectors[the_attributive_form_bungo, 2]<-"形容詞連体形（文語）"
+      imaginary_2vectors[the_imperative_form_bungo, 2]<-"形容詞命令形（文語）"
+      #----
+    }
+    #切り出す（形容詞以外の形態素を排除し、ピュアな形容詞とその活用形情報のみからなるイマジナリー2ベクトルを作り出す．）
+    if(1){
+      pure_imaginary_2vectors<-imaginary_2vectors[total_number,]
+    }
+    #整形（行名が同じの行同士を足し算で合併（マトリックス化）とそれを一つのベクトルに圧縮（ベクトル化））
+    #空のマトリックスを作成
+    if(0){
+      num_adjectives<-length(total_number)#形容詞形態素の総数
+      unique_adjectives<-unique(pure_imaginary_2vectors[,1])#異なり形容詞形態素の総数
+      lab<-c("形容詞未然形（口語）", "形容詞連用形（口語）", "形容詞終止形（口語）", "形容詞連体形（口語）", "形容詞仮定形（口語）", "形容詞語幹", "形容詞未然形（文語）", "形容詞終止形（文語）", "形容詞連体形（文語）", "形容詞命令形（文語）")#出力マトリックスの列名を用意
+    }
+    #マトリックス化
+    if(0){
+      result<-matrix(0, nrow=length(unique_adjectives), 10);colnames(result)<-lab;rownames(result)<-unique_adjectives#出力マトリックスを生成し、行名・列名を賦与
+      for(i in 1:num_adjectives){
+        x<-which(unique_adjectives==pure_imaginary_2vectors[i, 1])
+        y<-which(lab==pure_imaginary_2vectors[i, 2])
+        result[x, y]<-result[x, y]+1
+      }
+    }
+    #ベクトル化
+    if(0){
+      result_vec<-NULL;result_vec_names<-NULL#長さがともに〇の数値ベクトルと、それの名前ベクトルを用意
+      #对result矩阵中不为零的格，将其接到输出向量（result_vec）后端，并将其行名（形容词原形）和列名（活用形）联结起来作为向量中的元素名。
+      for(r in 1:length(unique_adjectives)){
+        for(c in 1:10){
+          if(result[r, c]!=0){
+            result_vec<-c(result_vec, result[r, c])
+            result_vec_names<-c(result_vec_names, paste(unique_adjectives[r], lab[c], sep="_"))
+          }
+        }
+      }
+      names(result_vec)<-result_vec_names#赋名
+    }
+    #読み込んだテキストの形態素総数を分母とする相対度数化を行い、最終出力を整理する。
+    if(0){
+      deno<-ifelse(denominator=="morpheme", num_morphemes, num_adjectives)#分母を引数denominatorで決める．
+      macro<-list(口語体活用形ベクトル=Colloquial,
+                            口語体活用形ベクトル_相対度数=Colloquial/deno,
+                            文語体活用形ベクトル=Bungo,
+                            文語体活用形ベクトル_相対度数=Bungo/deno,
+                            全活用形の分布=c(Colloquial, Bungo),
+                            全活用形の分布_相対度数=c(Colloquial, Bungo)/deno)
+      micro<-list(形容词原形和活用矩阵=result,
+                            非零要素向量=result_vec,
+                            非零要素向量的相对度数=result_vec/deno)
+    }
+    #整理完了、出力！
+    if(0){
+      list(マクロ=macro, ミクロ=micro, トータルナンバー=total_number, 活用形矩阵=pure_imaginary_2vectors)
+    }
+    if(1){
+      Res<-list(トータルナンバー=total_number, 活用形矩阵=pure_imaginary_2vectors)
+      return(Res)
+    }
+  }else{cat("不含形容词！\n")}
+}
+fun_BSPattern_reproduction<-function(x, mode="M"){
+  #既存の文節パターンＢ特徴量ベクトルを再現。
+  #对象x为MeCab或Juman++的词素解析结果（矩阵，前者10列，后者16列）
+  #参数mode用来指定对象x为MeCab还是Juman++的词素解析结果。
+  nr<-nrow(x)#先数对象x有几行
+  SupCo<-ifelse(mode=="M", 2, 4)#上位概念（Superordinate Concept）的缩写，即词素品词大分类所在列序号
+  SubCo<-ifelse(mode=="M", 3, 6)#下位概念（Subordinate Concept）的缩写，即词素品词小分类所在列序号
+  Surface_chain<-x[, 1]
+  SupCo_Chain<-x[, SupCo]
+  Sueoki<-which(str_detect(SupCo_Chain, "^(助詞|記号)$"))#変数名の通り，表層形態素のままで（据え置き）
+  SupCo_Chain[Sueoki]<-Surface_chain[Sueoki]
+  res<-fun_InVec_adhere(SupCo_Chain, sep="_")
+  return(res)
+}
+한수_중복_제거<-function(x){#函数：重复去除
+  #x为可能存在重复元素的向量
+  환승역<-table(x)#换送驿
+  중복_제거_결과<-names(환승역)#重复除去结果（去重结果）
+  list(환승역=환승역, 중복_제거_결과=중복_제거_결과)
+}
+fun_wash_integer0<-function(x){#清洗函数，将拥有2层的list对象中的integer(0)转换为0
+  len_layer1<-length(x)
+  for(i in 1:len_layer1){
+    current_len_layer2<-length(x[[i]])
+    for(j in 1:current_len_layer2){
+      if(length(x[[i]][[j]])==0){
+        x[[i]][[j]]<-0
+      }
+    }
+  }
+  return(x)
+}
+#----
+
+x<-string
+M_Res<-Analytic_MeCab_429(input=string)
+
+fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
+  library(stringr)
+  #自制函数
+  if(1){
+    #自制函数fun_overlap，该自制函数用来检测两个字符串（x、y），是否属于[^.+(pattern)$, ^(pattern).+$]这种情况。
+    #----
+    #若是，输出TRUE判定（decision），否则输出FALSE。
+    #另外，考虑到pattern前后方：(^.+)和(.+$)中可能存在>=1个相同的字符。
+    #为了降低误判率（即错误给出FALSE判定），新设allowance参数来控制非(pattern)部分中可存在相同字符数的上限。
+    #----
+    fun_overlap<-function(x, y, ratio=1/3, allowance=3){
+      library(stringr)
+      len_x<-nchar(x)#字符串x的长度
+      len_y<-nchar(y)#字符串y的长度
+      splited_x<-unlist(str_split(x, ""))#拆解字符串x
+      splited_y<-unlist(str_split(y, ""))#拆解字符串y
+      same_char_xy<-intersect(splited_x, splited_y)#按x、y的顺序抽1次交集
+      same_char_yx<-intersect(splited_y, splited_x)#按y、x的顺序再抽1次交集
+      if(all(same_char_xy==same_char_yx)){#如果两个交集中元素的顺序完全一样的话，执行如下语句。
+        same_char<-same_char_xy
+      }else{
+        temp_len_same_char<-length(same_char_xy)
+        #自1渐增至参数allwoance，逐渐升级斩首/割尾的烈度
+        if(allowance>(temp_len_same_char-2)){#如果defalut的容忍值（allowance）大于(暂时的)交集长度-2的话，将容忍值强行降至(暂时的)交集长度-2
+          allowance<-temp_len_same_char-2
+        }
+        for(v in 1:allowance){#v为“烈度”的英语单词“violence”的首字母
+          syukyu<-1:v#日语单词“首級”的发音，指一向量对象中初始那一段要素的位置坐标
+          shippo<-(temp_len_same_char-v+1):temp_len_same_char#日语单词“尻尾”的发音，指一向量中末尾那一段要素的位置坐标
+          #进行两次斩首/割尾操作(Operation of Decapitation and Curtailment)
+          res1_ODC<-list(D=same_char_xy[-syukyu], C=same_char_yx[-shippo])#D为decapitated的首字母；C为curtailed的首字母
+          res2_ODC<-list(D=same_char_yx[-syukyu], C=same_char_xy[-shippo])
+          trunks<-list(res1_ODC, res2_ODC)#存放斩首/割尾后得到的4具胴体
+          comparison_of_trunks_1<-all(res1_ODC$D==res1_ODC$C)#对实施斩首/割尾行动后得到的两个新的向量对象（胴体部分）进行比较。同样需要两次，此乃第一次。
+          comparison_of_trunks_2<-all(res2_ODC$D==res2_ODC$C)#此乃第二次。
+          res_comparison_of_trunks<-c(comparison_of_trunks_1, comparison_of_trunks_2)#存放两个布尔值
+          if(any(res_comparison_of_trunks)){#若有任何一次胴体比较的结果为TRUE，即说明非(Pattern)部分中相同的字符有且仅有1个，将其移除就能得到真正的(Pattern)
+            same_char<-trunks[[which(res_comparison_of_trunks)[1]]][[1]]
+            break
+          }
+        }
+      }
+      len_same_char<-length(same_char)#求交集的长度（真正的交集）
+      if(len_same_char==0){
+        decision<-FALSE#若无交集，直接输出FALSE判定 
+      }else{
+        if(len_same_char>=2){#如果交集长度大于等于2的话执行以下语句。大致为：检测交集中最初和最后的字符在字符串x和y中的位置，并分别测首尾字符的距离，若不一致，则直接输出FALSE判定
+          first_same_char_pos_in_x<-which(splited_x==same_char[1])[1]#交集中的首字符在x中的位置
+          first_same_char_pos_in_y<-which(splited_y==same_char[1])[1]#交集中的首字符在y中的位置
+          last_same_char_pos_in_x<-max(which(splited_x==same_char[len_same_char]))#交集中的末字符在x中的位置
+          last_same_char_pos_in_y<-max(which(splited_y==same_char[len_same_char]))#交集中的末字符在y中的位置
+          if((last_same_char_pos_in_x-first_same_char_pos_in_x)==(last_same_char_pos_in_y-first_same_char_pos_in_y)){
+            #若x和y中交集的首尾字符间距离相同的话，计算(Pattern)的真实长度与x、y的（类）并集长度（即len_x+len_y-true_length_of_Pattern）的商ra。
+            #若ra的值大于参数ratio（预设值为1/3）,输出TRUE判定
+            true_pattern_length<-last_same_char_pos_in_x-first_same_char_pos_in_x+1#计算(Pattern)的实际长度
+            ra<-true_pattern_length/(len_x+len_y-true_pattern_length)#求(Pattern)的占比
+            if(ra>=ratio){
+              decision<-TRUE#交集占比超过预设值，给予TRUE判定
+            }else{
+              decision<-FALSE#交集占比不超过预设值，给予FALSE判定
+            }
+          }else{
+            decision<-FALSE#x、y中交集的首末字符间距离不一致，给予FALSE判定
+          }
+        }else{#如果交集长度为1，直接输出FALSE判定
+          decision<-FALSE
+        }
+      }
+      return(decision)
+    }
+    #Analytic_Jumanpp的改良版，同原始版本的区别在于将一词多义现象反映在了输出中
+    Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
+      library(stringr)
+      library(dplyr)
+      #自制函数群
+      #----
+      #对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
+      #若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
+      fun_glue<-function(x,direction=1,sep="_"){
+        if(is.null(dim(x))){#检测x是否为向量对象，若是，将其所有元素用sep联结后输出。
+          len<-length(x)
+          total<-x[1]
+          for(i in 2:len){
+            total<-paste(total,x[i],sep=sep)
+          }
+        }else{#若否，根据参数“direction”指定合并方向：若direction为1，->|<-；若2，则垂直方向压缩。
+          dimen<-switch(direction, "1"=ncol(x), "2"=nrow(x))
+          if(direction==1){
+            total<-x[,1]
+            for(i in 2:dimen){
+              total<-str_c(total, x[,i], sep=sep)
+            }
+          }else{
+            total<-x[1,]
+            for(i in 2:dimen){
+              total<-str_c(total, x[i,], sep=sep)
+            }
+          }
+        }
+        return(total)
+      }
+      #自定义函数（fun_Continuum_Searcher），用来定位所给向量对象（其中元素为序列号）中连续的元素块。
+      #输出为矩阵，其列数为2，第1列为各个连续的元素块的起始序列号，第2列为终止序列号；行数为连续元素块的个数。
+      fun_Continuum_Searcher<-function(x){
+        dif<-x[-1]-x[-length(x)]
+        l<-rle(dif)$l
+        v<-rle(dif)$v
+        end_pos<-cumsum(l)
+        start_pos<-end_pos-l+1
+        res<-cbind(x[start_pos[which(v==1)]], x[end_pos[which(v==1)]+1])
+        if(is.null(nrow(res))!=TRUE&nrow(res)!=0){
+          colnames(res)<-c("Start", "End")
+          rownames(res)<-paste0("No.", 1:nrow(res))
+          return(res)
+        }else{
+          return(0)
+        }
+      }
+      #检测所给向量中所有元素是否相同
+      fun_identical_test<-function(x){
+        len<-length(x)
+        for(i in 2:len){
+          if(x[1]!=x[i]){
+            return(FALSE)
+            #q()
+            stop(simpleError(message="不满足条件，跳出函数进程。"))
+          }
+        }
+        return(TRUE)
+      }
+      fun_merge<-function(x, pos="名詞"){
+        #x<-completed_new;pos="名詞"
+        if(is.null(nrow(x))==TRUE){
+          return(x)
+          #q()
+          stop(simpleError(message="不满足条件，跳出函数进程。"))
+        }
+        summary<-rle(x[,4])
+        len<-summary$lengths
+        val<-summary$values
+        end<-cumsum(len)
+        start<-end-len+1
+        matched<-which(val==pos&len>=2)
+        num_matched<-length(matched)
+        if(num_matched>=1){
+          need_to_be_removed<-NULL
+          res<-list()
+          for(i in 1:num_matched){
+            res[[i]]<-start[matched[i]]:end[matched[i]]
+          }
+          for(i in 1:num_matched){
+            elements<-res[[i]]
+            num_elements<-length(elements)
+            elements_end<-elements[num_elements]
+            first_3<-NULL
+            for(j in 1:3){
+              first_3[j]<-str_c(x[elements,j], collapse="")
+            }
+            mergerd<-c(first_3, x[elements_end,-c(1:3)])
+            mergerd[5]<-paste0("複合", pos)
+            x[elements_end,]<-mergerd
+            need_to_be_removed<-c(need_to_be_removed, elements[-length(elements)])
+          }
+          res<-x[-need_to_be_removed,]
+          return(res)
+        }else{
+          return(x)
+        }
+      }
+      #----
+      input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+      command<-paste("echo", input, "| jumanpp")
+      completed<-system(command, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_split_fixed(pattern=" ", n=16)
+      at_mark<-which(str_detect(completed[,1], "@"))
+      if(length(at_mark)!=0){
+        at_mark_verb<-at_mark[str_detect(completed[at_mark,5], "動詞")]
+        if(length(at_mark_verb)!=0){
+          Series_Numbers_of_Main_Definition_Line_for_Verbs_have_at_marks<-at_mark_verb[which(completed[at_mark_verb-1, 1]!="@")]#动词的第1个@行
+          if(length(at_mark_verb)>=2){
+            Multi_Interpretations_Verb<-fun_Continuum_Searcher(at_mark_verb)#寻找拥有3个及以上定义行（及2个以上“@”行）的动词，之后将其称为定义行（元素）块，输出每一个定义行块的起始行与终止行的行号码。
+            num_Continua<-nrow(Multi_Interpretations_Verb)#定义行块的数量。
+            if(is.null(num_Continua)!=TRUE){
+              #压缩：对于有3个以上定义的动词，将其第2个之后的定义行进行压缩：多行并为1行
+              for(i in 1:num_Continua){#对于每一个定义行块
+                #1，截取各定义行块的形态素解析的结果，但是不包含第1定义行（即第1元素不为“@”的行）
+                temp_Continuum<-completed[(Multi_Interpretations_Verb[i,1]:Multi_Interpretations_Verb[i,2]),]
+                discord<-which(apply(temp_Continuum, 2, fun_identical_test)!=TRUE)#比较当前定义行块中各行的对应位置，定位不一致的元素的位置。
+                #用黏合对应位置上独特（unique）元素的方式，压缩各定义行到一行，替代第1“@”定义行。将其余定义行中的所有元素用“”替代
+                Multi_Interpretations_Verb[i,1]#23
+                completed[Multi_Interpretations_Verb[i,1], discord]<-ifelse(length(discord)>1, fun_glue(apply(temp_Continuum[,discord], 2, unique), direction=2), fun_glue(x=temp_Continuum[,discord]))
+                completed[((Multi_Interpretations_Verb[i,1]+1):Multi_Interpretations_Verb[i,2]),]<-rep("", 16)
+              }
+            }
+          }
+          #对于拥有多行定义的动词形态素结果，将其中的主行与压缩后的副行进行再压缩（即：将不一致的元素进行粘合）
+          for(i in Series_Numbers_of_Main_Definition_Line_for_Verbs_have_at_marks){
+            alternative<-append(completed[i,-1], "")
+            adhered<-rbind(completed[i-1,], alternative)
+            discord<-which(apply(adhered, 2, fun_identical_test)!=TRUE)
+            #completed[i-1, discord]<-paste0(completed[i-1, discord], " // ", alternative[discord])
+            #completed[i-1, discord]<-fun_glue(apply(adhered[,discord], 2, unique), direction=2)
+            completed[i-1, discord]<-ifelse(length(discord)>1, fun_glue(apply(adhered[,discord], 2, unique), direction=2), fun_glue(x=adhered[,discord]))
+            completed[i, ]<-rep("", 16)#将动词副行用“”填充
+          }
+        }
+        at_mark_others<-setdiff(at_mark, at_mark_verb)#不属于动词，且拥有多行定义的形态素的，第2定义行及以下的行号码。
+        completed[at_mark_others,]<-""#删除非动词形态素的候补定义行
+        need_delete<-which(completed[,1]=="")
+        if(length(need_delete)!=0){
+          completed<-completed[-need_delete,]
+        }else{
+          completed<-completed
+        }
+      }
+      completed[completed=="NIL"]<-""
+      completed[completed=="*"]<-""
+      completed[completed=="未定義語"]<-"名詞"
+      nr<-nrow(completed)
+      if(is.null(nr)){
+        completed<-completed%>%str_replace_all("\"", "")%>%str_replace_all("(^ // )", "")
+        if(mode){
+          completed<-completed[-c(5, 7, 9, 11)]
+        }
+      }else{
+        if(nr>=2){
+          completed[, 1:16]<-completed[, 1:16]%>%str_replace_all("\"", "")%>%str_replace_all("(^ // )", "")
+          if(mode){
+            completed<-completed[, -c(5, 7, 9, 11)]
+          }
+        }else{
+          completed<-completed%>%str_replace_all("\"", "")%>%str_replace_all("(^ // )", "")
+          if(mode){
+            completed<-completed[-c(5, 7, 9, 11)]
+          }
+        }
+      }
+      if(merge==TRUE){
+        final_res<-fun_merge(x=completed)
+      }else{
+        final_res<-completed
+      }
+      return(final_res)
+    }
+    fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI"){
+      #输入为被压缩为一个元素的字符串，输出用Juman++进行形态素解析的结果（矩阵），default为进行连续名词合并。
+      #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
+      #然后使用Juman++对每个短句进行形态素解析，最后按照“一个（无句读点）短句+原文中后接句读点”的方式叠加等长度向量作为结果输出
+      if(1){
+        #input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+        Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
+        Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+        Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+        len_sentences<-length(Non_Punctuation_Marks)
+        Warehouse<-list()
+        for(i in 1:len_sentences){
+          Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=0)
+          cat(i, "\n")
+        }
+        #Final_Result<-rbind(Warehouse[[1]], Analyzed_Results_for_Punctuation_Marks[1,])
+        Final_Result<-Warehouse[[1]]
+        if(length(Warehouse)>=2){
+          for(i in 2:len_sentences){
+            #Final_Result<-rbind(Final_Result, Warehouse[[i]], Analyzed_Results_for_Punctuation_Marks[i,])
+            Final_Result<-rbind(Final_Result, Warehouse[[i]])
+          }
+        }
+      }
+      if(0){
+        prefix_morphemes<-which(Final_Result[, 4]=="接頭辞")
+        if(length(prefix_morphemes)!=0 & prefix_mask==TRUE){
+          Final_Result<-Final_Result[-prefix_morphemes,]
+        }  
+      }
+      Final_Result[,1:16]<-str_replace_all(Final_Result[,1:16], pattern="\"", replacement="")
+      Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J")
+      Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J", target="Suf")
+      #将“形容動詞”标记出来
+      形容動詞位置<-which(Final_Result[, 4]=="形容詞"&Final_Result[, 8]=="ナ形容詞")
+      Final_Result[形容動詞位置, 4]<-"形容動詞"
+      if(mode=="XII"){
+        Final_Result<-Final_Result[,-c(5, 7, 9, 11)]
+      }
+      return(Final_Result)
+    }
+    #输入同上，输出用MeCab进行形态素解析的结果（矩阵）；已嵌入连续名词的合并。
+    Analytic_MeCab_429<-function(input){
+      library(stringr)
+      if(1){
+        fun_InVec_adhere<-function(vec, sep=""){
+          library(stringr)
+          len<-length(vec)
+          res<-vec[1]
+          for(i in 2:len){
+            if(vec[i]!="") res<-str_c(res, vec[i], sep=sep)
+            else break
+          }
+          return(res)
+        }
+        fun_rough_merge<-function(X, position=2, anchor_label="名詞"){
+          fun_temp<-function(x)length(unique(x))
+          Summary<-rle(X[,position])
+          len<-Summary$lengths
+          val<-Summary$values
+          end<-cumsum(len)
+          start<-end-len+1
+          matched<-which(val==anchor_label&len>=2)
+          num_matched<-length(matched)
+          if(num_matched>=1){
+            res<-list()
+            # find every Continuum which its 2nd lable is "anchor_label",
+            # then store its row numbers in correspond element of res
+            for(i in 1:num_matched) res[[i]]<-start[matched[i]]:end[matched[i]]
+            # for each selected Continuum, compress it from up and down.
+            tag_positions<-2:7
+            surface_pronunciations<-c(1, 8:10)
+            for(i in 1:num_matched){
+              elements<-res[[i]]# Stored series number of rows stored in current Continnum.
+              num_elements<-length(elements)# Length of current.
+              #inconsistencies<-tag_positions[which(apply(X[elements, tag_positions], 2, fun_temp)!=1)]
+              #if(length(inconsistencies)!=0){
+              #  X[elements[1], inconsistencies]<-apply(X[elements, inconsistencies], 2, fun_InVec_adhere)
+              #}
+              X[elements[1], surface_pronunciations]<-apply(X[elements, surface_pronunciations], 2, fun_InVec_adhere)
+              X[elements[-1], 1]<-""
+            }
+            return(X[-which(X[,1]==""),])
+          }
+          return(X)
+        }
+        fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
+          #----
+          fun_Trivial_Prefix<-function(x, y){
+            library(stringr)
+            #本函数用来适切地将“接头辞”行和后接的“名词”行合并为1行
+            #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+            #x为“接头辞”行，y为后接的“名词”行
+            Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+            Res<-rep("", 15)#最终输出的结果
+            Simple_Combine<-c(1:3, 14, 15)#简单结合
+            Keep_the_Latter<-c(4:11)#仅保留后者
+            Padding_Combine<-13#中间插入自定义分隔符后结合
+            Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+            Res[Keep_the_Latter]<-Ore[2,Keep_the_Latter]
+            Res[Padding_Combine]<-fun_glue(Ore[,Padding_Combine], direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+            #for Tricky One: 12
+            if(1){
+              Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+              Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+              Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+            }
+            return(Res)
+          }
+          fun_Trivial_Suffix<-function(x, y){
+            library(stringr)
+            #本函数用来适切地将“名词”行和后接的“接尾词”行合并为1行
+            #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
+            #x为“名词”行，y为后接的“接尾词”行
+            Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
+            Res<-rep("", 15)#最终输出的结果
+            Simple_Combine<-c(1:3, 14, 15)#简单结合
+            Keep_the_Latter<-c(4:11)#仅保留前者
+            Padding_Combine<-13#中间插入自定义分隔符后结合
+            Res[Simple_Combine]<-fun_glue(Ore[,Simple_Combine], direction=2, sep="")
+            Res[Keep_the_Latter]<-Ore[1,Keep_the_Latter]
+            Res[Padding_Combine]<-Ore[,Padding_Combine]%>%fun_glue(direction=2, sep=" =|= ")%>%str_replace(" =\\|= $", "")
+            #for Tricky One: 12
+            if(1){
+              Chinese_Characters<-Ore[,12]%>%str_extract_all(":.*/")%>%unlist()%>%str_sub(2,-2)%>%fun_InVec_adhere("")
+              Hiragana<-Ore[,12]%>%str_extract_all("/.*$")%>%unlist()%>%str_sub(2,-1)%>%fun_InVec_adhere("")
+              #Res[12]<-fun_InVec_adhere(vec=c("代表表記:", Chinese_Characters, "/", Hiragana), sep="")
+              Res[12]<-c("代表表記:", Chinese_Characters, "/", Hiragana)%>%fun_InVec_adhere("")
+            }
+            return(Res)
+          }
+          #----
+          #x是已经过名词合并的MeCab或Juman++的形态素解析结果；参数mode用来指定输入的形态素结果是来自MeCab或是Juman++。
+          #参数target用来指定和“名词”行合并的是“接头辞”还是“接尾辞”（前者为"Pre"，后者为"Suf"）
+          if(target=="Pre"){
+            if(mode=="M"){
+              a<-which(x[,2]=="接頭詞")#被判定为“接头辞”的形态素的序列号
+              Prefix_lines<-a[which(x[a+1,2]=="名詞")]#“接头辞”形态素中，后接“名词”形态素的序列号
+              Noun_lines<-Prefix_lines+1#接头词后的名词行编号
+              len<-length(Prefix_lines)#匹配成功的个数
+              if(len!=0){
+                for(i in 1:len){
+                  Current_PrefixLine<-x[Prefix_lines[i], ]#现在的“接头辞”行
+                  Current_NounLine<-x[Noun_lines[i], ]#现在的“名词”行
+                  Fused<-paste0(Current_PrefixLine, Current_NounLine)#把（当前）“接头辞”行与后续的“名词”行的对应元素粘起来
+                  Fused[c(2,3)]<-Current_NounLine[c(2,3)]#将其中第2元素（品词大分类），第3元素（品词小分类）替换为“名词”行的对应元素
+                  x[Noun_lines[i],]<-Fused#用混合好了的行替换接头词行后的名词行
+                }
+                new_x<-x[-Prefix_lines, ]#删除所有接头词行
+              }else{
+                new_x<-x
+              }
+            }else
+              if(mode=="J"){
+                b<-which(x[,4]=="接頭辞")#定位接头辞的行编号
+                Prefix_lines<-b[which(x[b+1,4]=="名詞")]#过滤，仅保留后接名词的接头辞行的编号
+                Noun_lines<-Prefix_lines+1
+                len<-length(Prefix_lines)
+                if(len!=0){
+                  for(i in 1:len){
+                    Current_PrefixLine<-x[Prefix_lines[i],]
+                    Current_NounLine<-x[Noun_lines[i],]
+                    Fused<-fun_Trivial_Prefix(Current_PrefixLine, Current_NounLine)
+                    x[Noun_lines[i],]<-Fused#用处理好的行替换当前的名词行
+                  }
+                  new_x<-x[-Prefix_lines,]#删去接头辞行
+                }else{
+                  new_x<-x
+                }
+              }else{
+                cat("mode只能为M或J。\n")
+              }
+            return(new_x)
+          }
+          if(target=="Suf"){
+            if(mode=="J"){
+              b<-which(x[,4]=="接尾辞")#定位接尾辞行
+              Suffix_lines<-b[which(x[b-1,4]=="名詞")]#过滤，仅保留前接名词的接尾辞的行编号
+              Noun_lines<-Suffix_lines-1
+              len<-length(Suffix_lines)
+              if(len!=0){
+                for(i in 1:len){
+                  Current_NounLine<-x[Noun_lines[i],]
+                  Current_SuffixLine<-x[Suffix_lines[i],]
+                  Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
+                  x[Noun_lines[i],]<-Fused
+                }
+                new_x<-x[-Suffix_lines,]
+              }else{
+                new_x<-x
+              }
+            }else{
+              cat("在target为“Suf”的情况下，mode只能为J。\n")
+            }
+            return(new_x)
+          }
+        }
+        Call_MeCab<-function(input){
+          #input<-Rebuilt_Parts[i]
+          pseudo_input<-paste0("！", input)
+          #pseudo_input
+          command_M<-paste("echo", pseudo_input, "| mecab -b 5242880")
+          res_M<-system(command_M, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_replace_all("\\t",",")%>%str_split_fixed(pattern=",",10)
+          res_M<-res_M%>%fun_rough_merge()
+          res_M<-res_M[-1,]
+        }
+      }
+      input<-chartr(old="&()", new="＆（）", input)
+      Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
+      Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
+      Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
+      len_sentences<-length(Non_Punctuation_Marks)
+      Warehouse<-list()
+      for(i in 1:len_sentences) Warehouse[[i]]<-Rebuilt_Parts[i]%>%Call_MeCab()
+      Final_Result<-Warehouse[[1]]
+      if(len_sentences>=2){
+        for(i in 2:len_sentences) Final_Result<-rbind(Final_Result, Warehouse[[i]])
+      }
+      Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result)
+      Final_Result<-rbind(Final_Result, matrix("", nrow=3, ncol=10))
+      #对于表停顿时间长度的标点统一为“、”或“。”，对于表引用的标点一律删除。
+      if(1){
+        #convert quasi-commas and quasi-periods to commas and periods
+        quasi_commas<-which(str_detect(Final_Result[,1], "^(・|，|ーー|ー|,)$"))
+        quasi_periods<-which(str_detect(Final_Result[,1], "^(．|\\.|…|……|…。|……。|？|！|!)$"))
+        Final_Result[quasi_commas, 1]<-"、"
+        Final_Result[quasi_periods,1]<-"。"
+        #remove quotation marks
+        quotation_marks<-which(str_detect(Final_Result[,1], "^(「|」|『|』|（|）|(|)|[|]|【|】|［|］|〈|〉|〔|〕|｛|｝|“|”|\"|‘|’|\')$"))
+        Final_Result<-Final_Result[-quotation_marks,]
+      }
+      #厘出“形容動詞”
+      if(1){
+        形容動詞位置<-which(Final_Result[, 3]=="形容動詞語幹")
+        Final_Result[形容動詞位置, 2]<-"形容動詞"
+        Final_Result[形容動詞位置, 3]<-"語幹"
+      }
+      return(Final_Result)
+    }
+    #快速读取指定path处的文本，并调用Juman++和MeCab进行形态素解析的函数
+    fun_ReadIn<-function(x, mode="All"){
+      if(mode=="J"){
+        J_Res<-fun_jumanpp_R_51(input=x, M=TRUE, prefix_mask=FALSE)
+        return(J_Res)
+      }else if(mode=="M")
+      {
+        M_Res<-Analytic_MeCab_429(input=target)
+        return(M_Res)
+      }else if(mode=="All"){
+        J_Res<-fun_jumanpp_R_51(input=x, M=TRUE, prefix_mask=FALSE)
+        M_Res<-Analytic_MeCab_429(input=x)
+        list(J_Res, M_Res)
+      }else
+        cat("只能键入 J, M 或 All.\n")
+    }
+  }
+  #前期准备
+  if(1){
+    #此处读取文本，并进行形态素解析（先Juman++，后MeCab）
+    if(1){
+      #对于“べき”一族提前就行替换。
+      if(str_detect(x, "可(き|からず|からざる|からぬ|く|し)")){
+        x<-str_replace_all(x, "可き", "べき")
+        x<-str_replace_all(x, "可からず", "べからず")
+        x<-str_replace_all(x, "可からざる", "べからざる")
+        x<-str_replace_all(x, "可からぬ", "べからぬ")
+        x<-str_replace_all(x, "可く", "べく")
+        x<-str_replace_all(x, "可し", "べし")
+      }
+      rear_padding<-matrix("", 3, 10)
+      M_Res<-rbind(M_Res, rear_padding)
+      #Mixture<-fun_ReadIn(x=x)
+      #J_Res<-Mixture[[1]]
+      jn<-nrow(J_Res)#J_Res中含词素的总数
+      #M_Res<-Mixture[[2]]
+      mn<-nrow(M_Res)#M_Res中含词素的总数
+    }#チェック済み
+    #为最终结果（矩阵）准备列名
+    if(1){
+      Full_Set<-c("未然形", "連用形", "終止形", "連体形", "仮定形", "命令形")#完整的6项活用形
+      Colloquial_Style_Basic_Forms<-c("せる/らせる", "れる/られる", "ない", "ぬ", "う/よう", "まい", "たい", "たがる", "た/だ", "ようだ", "らしい", "ます", "だ", "です", "そうだ（様態）", "そうだ（伝聞）")# 16个
+      Literary_Style_Basic_Forms<-c("しめる", "む", "き", "けり", "つ", "ぬ", "たり（完了）", "たし", "べし", "まじ", "なり", "たり（断定）", "ごとし")# 13个
+      #口语体助动词的活用种类一览
+      Colloquial_Style_Conjugation<-c(
+        ##----
+        Full_Set,# I_せる/らせる
+        Full_Set,# II_れる/られる
+        Full_Set[-6],# III_ない
+        Full_Set[2:5],# IV_ぬ
+        Full_Set[3:4],# V_う/よう
+        Full_Set[3:4],# VI_まい
+        c(Full_Set[-6], "連用ゴザイ接続"),# VII_たい
+        Full_Set[-6],# VII_たがる
+        Full_Set[-c(1, 6)],# VIII_た/だ
+        Full_Set[-6],# IX_ようだ
+        c(Full_Set[2:5], "文語未然形", "文語連体形"),# X_らしい
+        c(Full_Set, "古い終止形・連体形"),# XI_ます
+        c(Full_Set[-6]),# XII_だ
+        c(Full_Set[1:4]),# XIII_です
+        c(Full_Set[1:5], "語幹"),# XIV_そうだ（様態）
+        c(Full_Set[1:4], "語幹")# XV_そうだ（伝聞）
+        ##----
+      )#チェック済み
+      #文语体助动词的活用种类一览
+      Literary_Style_Conjugation<-c(
+        ##----
+        Full_Set,# 1_しめる
+        Full_Set[3:4],# 2_む
+        Full_Set[3:4],# 3_き
+        Full_Set[3],# 4_けり
+        Full_Set[3],# 5_つ
+        Full_Set[3],# 6_ぬ
+        Full_Set,# 7_たり（完了）
+        Full_Set[3],# 8_たし
+        Full_Set[1:4],# 9_べし
+        Full_Set[3:4],# 10_まじ
+        Full_Set[-c(2, 6)],# 11_なり
+        Full_Set,# 12_たり（断定）
+        Full_Set[2:4]# 13_ごとし
+        ##----
+      )#チェック済み
+      #此处为最终结果（矩阵）的各列命名，形式为“助动词辞书形_所属的六活用_具体表现形式”
+      Labels_Dictionary_first_half<-list(CS=c(6, 6, 5, 4, 2, 2, 6, 5, 4, 5, 6, 7, 5, 4, 6, 5),#口語体
+                                         LS=c(6, 2, 2, 1, 1, 1, 6, 1, 4, 2, 4, 6, 3))#文語体
+      Labels_Conjugation_second_half<-list(Colloquial_Style_Conjugation, Literary_Style_Conjugation)#各助动词具体的活用表现形式
+      #最终结果（矩阵）的列名：两套，其一为“助动词辞书形_六活用”，其二为具体的活用表现形式
+      ##第1套
+      part_1_CS<-rep(x=Colloquial_Style_Basic_Forms, Labels_Dictionary_first_half$CS)#复制各助动词（口语体）至适当长度
+      part_1_LS<-rep(x=Literary_Style_Basic_Forms, Labels_Dictionary_first_half$LS)#复制各助动词（文语体）至适当长度
+      Column_Names_CS<-paste(part_1_CS, Colloquial_Style_Conjugation, sep="_")#连结各助动词（口语体）与对应活用形
+      Column_Names_LS<-paste(part_1_LS, Literary_Style_Conjugation, sep="_")#连结各助动词（文语体）与对应活用形
+      Column_Names<-list(Column_Names_CS=Column_Names_CS, Column_Names_LS=Column_Names_LS)#将列名（口语体）与列名（文语体）收纳入list对象中
+      #第2套
+      ##----
+      if(0){
+        Labels_Concrete_Transformations<-list(CSD=c("せ", "せ", "せる", "せる", "せれ", "せろ（せよ）",
+                                                    #----
+                                                    "れ", "れ", "れる", "れる", "れれ", "れろ（れよ）",
+                                                    "なかろ", "なく（なかっ）", "ない", "ない", "なけれ",
+                                                    "ず", "ぬ（ん）", "ぬ（ん）", "ね",
+                                                    "う（よう）", "（う）（よう）",
+                                                    "まい", "（まい）", 
+                                                    "たかろ", "たかっ（たく）", "たい", "たい", "たけれ", "とう",
+                                                    "たがら（たがろ）", "たがり（たがっ）", "たがる", "たがる", "たがれ",
+                                                    "たろ／だろ", "た／だ", "た／だ", "たら／だら", 
+                                                    "ようだろ", "ようだっ（ようで・ように）", "ようだ", "ような", "ようなら", 
+                                                    "らしく（らしかっ）", "らしい", "らしい", "らしけれ", "らしから", "らしき", 
+                                                    "ませ（ましょ）", "まし", "ます", "ます", "ますれ", "ませ（まし）", "まする", 
+                                                    "だろ", "だっ（で）", "だ", "な", "なら", 
+                                                    "でしょ", "でし", "です", "です",
+                                                    "そうだろ（様態）", "そうだっ（そうで・そうに）（様態）", "そうだ（様態）", "そうな（様態）", "そうなら（様態）", "そう（様態）",
+                                                    "そうで（伝聞）", "そうだ（伝聞）", "そうな（伝聞）"),
+                                              #----
+                                              LSD=c("しめ", "しめ", "しめる", "しめる", "しめれ", "しめろ（しめよ）",
+                                                    #----
+                                                    "む（ん）", "む（ん）",
+                                                    "き", "し",
+                                                    "けり",
+                                                    "つ",
+                                                    "ぬ",
+                                                    "たら", "たり", "たり", "たる", "たれ", "たれ",
+                                                    "たし",
+                                                    "べから", "べく（べかり）", "べし", "べき",
+                                                    "まじ", "まじき",
+                                                    "なら", "なり", "なる", "なれ",
+                                                    "たら", "たり", "たり", "たる", "たれ", "たれ",
+                                                    #----
+                                                    "ごとく", "ごとし", "ごとき")
+        )
+      }
+      if(0){
+        #助动词各活用形的具体表现（活用种类）
+        Labels_Concrete_Transformations<-list(CSD=c("せ(未然)", "せ(連用)", "せる(終止)", "せる(連体)", "せれ(仮定)", "せろ（せよ）(命令)",
+                                                    #----
+                                                    "れ(未然)", "れ(連用)", "れる(終止)", "れる(連体)", "れれ(仮定)", "れろ（れよ）(命令)",
+                                                    "なかろ(未然)", "なく（なかっ）(連用)", "ない(終止)", "ない(連体)", "なけれ(仮定)",
+                                                    "ず(連用)", "ぬ（ん）(終止)", "ぬ（ん）(連体)", "ね(仮定)",
+                                                    "う（よう）(終止)", "（う）（よう）(連体)",
+                                                    "まい(終止)", "（まい）(連体)", 
+                                                    "たかろ(未然)", "たかっ（たく）(連用)", "たい(終止)", "たい(連体)", "たけれ(仮定)", "とう(連用ゴザイ接続)",
+                                                    "たがら（たがろ）(未然)", "たがり（たがっ）(連用)", "たがる(終止)", "たがる(連体)", "たがれ(仮定)",
+                                                    "たろ／だろ(未然)", "た／だ(終止)", "た／だ(連体)", "たら／だら(仮定)", 
+                                                    "ようだろ(未然)", "ようだっ（ようで・ように）(連用)", "ようだ(終止)", "ような(連体)", "ようなら(仮定)", 
+                                                    "らしく（らしかっ）(連用)", "らしい(終止)", "らしい(連体)", "らしけれ(仮定)", "らしから(文語未然形)", "らしき(文語連体形)", 
+                                                    "ませ（ましょ）(未然)", "まし(連用)", "ます(終止)", "ます(連体)", "ますれ(仮定)", "ませ（まし）(命令)", "まする(古い終止形・連体形)", 
+                                                    "だろ(未然)", "だっ（で）(連用)", "だ(終止)", "な(連体)", "なら(仮定)", 
+                                                    "でしょ(未然)", "でし(連用)", "です(終止)", "です(連体)",
+                                                    "そうだろ（様態_未然）", "そうだっ（そうで・そうに）（様態_連用）", "そうだ（様態_終止）", "そうな（様態_連体）", "そうなら（様態_仮定）", "そう（様態_語幹）",
+                                                    "そうだろ（伝聞_未然）", "そうで（伝聞_連用）", "そうだ（伝聞_終止）", "そうな（伝聞_連体）", "そう（伝聞_語幹）"),
+                                              #----
+                                              LSD=c("しめ(未然)", "しめ(連用)", "しめる(終止)", "しめる(連体)", "しめれ(仮定)", "しめろ（しめよ）(命令)",
+                                                    #----
+                                                    "む（ん）(終止)", "む（ん）(連体)",
+                                                    "き(終止)", "し(連体)",
+                                                    "けり(終止)",
+                                                    "つ(終止)",
+                                                    "ぬ(終止)",
+                                                    "たら(未然)", "たり(連用)", "たり(終止)", "たる(連体)", "たれ(仮定)", "たれ(命令)",
+                                                    "たし(終止)",
+                                                    "べから(未然)", "べく（べかり）(連用)", "べし(終止)", "べき(連体)",
+                                                    "まじ(終止)", "まじき(連体)",
+                                                    "なら(未然)", "なり(終止)", "なる(連体)", "なれ(仮定)",
+                                                    "たら(未然)", "たり(連用)", "たり(終止)", "たる(連体)", "たれ(仮定)", "たれ(命令)",
+                                                    #----
+                                                    "ごとく(連用)", "ごとし(終止)", "ごとき(連体)")
+        )
+      }
+      #Column_Names_2<-Labels_Concrete_Transformations
+    }
+    #首先为各助动词准备待填充的0向量群
+    if(1){
+      #口语体
+      C_I_J<-rep(0, 6);  C_II_J<-rep(0, 6);      C_III_J<-rep(0, 5);        C_IV_J<-rep(0, 4);   C_V_J<-rep(0, 2)
+      C_VI_J<-rep(0, 2); C_VII_M_Tai<-rep(0, 6); C_VII_M_TaGaRu<-rep(0, 5); C_VIII_J<-rep(0, 4); C_IX_J<-rep(0, 5)
+      C_X_J<-rep(0, 6);  C_XI_M<-rep(0, 7);      C_XII_M<-rep(0, 5);        C_XIII_M<-rep(0, 4); C_XIV_J<-rep(0, 6)
+      C_XV_J<-rep(0, 5)
+      #文语体
+      L_1_J<-rep(0, 6);  L_2_M<-rep(0, 2);  L_3_M<-rep(0, 2); L_4_M<-0;         L_5_M<-0
+      L_6_M<-0;          L_7_M<-rep(0, 6);  L_8_M<-0;         L_9_J<-rep(0, 4); L_12_M<-rep(0, 2)
+      L_13_M<-rep(0, 4); L_14_M<-rep(0, 6); L_15_J<-rep(0, 3)
+    }
+    #为本函数（fun_Matching_Auxiliary_Verb_compact）准备最终输出。具体形式为1个list对象，含2个元素：
+    #（1）助动词词素在Res_M矩阵中的行编号
+    #（2）拥有3列的矩阵，行数为输入字符串中被判定为“助动词”的词素的总数（包括映射自J_Res的）
+    # [第1列：“助动词”标签]
+    # [第2列：“助动词”标签_助动词基本形]
+    # [第3列：助动词基本形_助动词活用形]
+    res2compact<-list(sn=NULL, detail=NULL)#sn为series numbers的首字母缩写；detail就不用解释了
+  }#チェック済み
+  #选取实际使用部分，拼接。
+  if(1){
+    ##口語体
+    if(1){
+      # I_せる/らせる
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "せる|させる"))
+        Pots_C_I_J<-list(0, 0, 0, 0, 0, 0)#对象Pots用来收纳匹配到的词素的行编号。
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_C_I_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="未然形")]
+            Pots_C_I_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本連用形")]
+            Pots_C_I_J[[3]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "句点|読点|終助詞"))]
+            Pots_C_I_J[[4]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers+1, 4]=="名詞")]
+            Pots_C_I_J[[5]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")]
+            Pots_C_I_J[[6]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="命令形")]
+          }
+          if(0){
+            #求满足副条件的行的总数
+            C_I_J<-c(length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="未然形")),
+                     length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本連用形")),
+                     length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "句点|読点|終助詞"))),
+                     length(which(J_Res[Matched_Morphemes_Serial_Numbers+1, 4]=="名詞")),
+                     length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")),
+                     length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="命令形"))
+            )
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+      }
+      # II_れる/られる
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "れる|られる"))
+        Pots_C_II_J<-list(0, 0, 0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_C_II_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="未然形")]
+            Pots_C_II_J[[3]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "句点|読点|終助詞"))]
+            Pots_C_II_J[[4]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "^(?!.*(句点|読点|終助詞)).*$"))]
+            Pots_C_II_J[[5]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")]
+            Pots_C_II_J[[6]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "命令形"))]
+            Pots_C_II_J[[2]]<-setdiff(Matched_Morphemes_Serial_Numbers, c(Pots_C_II_J[[1]], Pots_C_II_J[[3]], Pots_C_II_J[[4]], Pots_C_II_J[[5]], Pots_C_II_J[[6]]))
+          }
+          if(0){
+            temp_length<-length(Matched_Morphemes_Serial_Numbers)
+            C_II_J<-c(length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="未然形")),
+                      0,
+                      length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "句点|読点|終助詞"))),
+                      length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "^(?!.*(句点|読点|終助詞)).*$"))),
+                      length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")),
+                      length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "命令形")))
+            )
+            C_II_J[2]<-temp_length-sum(C_II_J)
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+      }
+      # III_ない
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="ない"&J_Res[, 4]=="接尾辞")
+        Pots_C_III_J<-list(0, 0, 0, 0, 0)
+        ###"及ぼす"无法被Jumanpp识别为一个动词
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_C_III_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 2], "なかろ"))]
+            Pots_C_III_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 2], "なかっ|なく"))]
+            Pots_C_III_J[[3]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 4], "助|特殊"))]
+            Pots_C_III_J[[4]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&J_Res[Matched_Morphemes_Serial_Numbers+1, 4]=="名詞")]
+            Pots_C_III_J[[5]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "条件形"))]
+          }
+          if(0){
+            C_III_J<-c(length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 2], "なかろ"))),
+                       length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 2], "なかっ|なく"))),
+                       length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 4], "助|特殊"))),
+                       length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&J_Res[Matched_Morphemes_Serial_Numbers+1, 4]=="名詞")),
+                       length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "条件形")))
+            )
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+      }
+      # IV_ぬ
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="ぬ"&J_Res[, 4]=="助動詞")
+        Pots_C_IV_J<-list(0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_C_IV_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[, 2]=="ず")]
+            Pots_C_IV_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "基本形")&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 4], "助|特殊"))]
+            Pots_C_IV_J[[3]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "基本形")&J_Res[Matched_Morphemes_Serial_Numbers+1, 4]=="名詞")]
+            Pots_C_IV_J[[4]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")]
+          }
+          if(0){
+            C_IV_J<-c(length(which(J_Res[, 2]=="ず")),
+                      length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "基本形")&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 4], "助|特殊"))),
+                      length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "基本形")&J_Res[Matched_Morphemes_Serial_Numbers+1, 4]=="名詞")),
+                      length(which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形"))
+            )
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+        #C_IV_J[3]<-C_IV_J[3]+length(which(str_detect(J_Res[, 2], "^.*らぬ$|^.*しれぬ$|^おもわぬ$")))
+        Pots_C_IV_J[[3]]<-sort(union(Pots_C_IV_J[[3]], which(str_detect(J_Res[, 2], "^.*らぬ$|^.*しれぬ$|^おもわぬ$"))))
+      }
+      # V_う/よう
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-sort(c(which(J_Res[, 10]=="意志形"&(J_Res[, 4]=="動詞"|J_Res[, 6]=="動詞性接尾辞")), which(str_detect(J_Res[, 2], "^.*う$")&J_Res[, 4]=="助動詞"|(J_Res[, 4]=="形容詞"&str_detect(J_Res[, 10], "基本推量形")))))
+        Pots_C_V_J<-list(0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_C_V_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "名詞"))]
+            Pots_C_V_J[[1]]<-setdiff(Matched_Morphemes_Serial_Numbers, Pots_C_V_J[[2]])
+          }
+          if(0){
+            C_V_J<-c(0, length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "名詞"))))
+            C_V_J[1]<-length(Matched_Morphemes_Serial_Numbers)-C_V_J[2]
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+      }
+      # VI_まい
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="まい"&J_Res[, 4]=="助動詞")
+        Pots_C_VI_J<-list(0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_C_VI_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "名詞"))]
+            Pots_C_VI_J[[1]]<-setdiff(Matched_Morphemes_Serial_Numbers, Pots_C_VI_J[[2]])
+          }
+          if(0){
+            C_VI_J<-c(0, length(which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "名詞"))))
+            C_VI_J[1]<-length(Matched_Morphemes_Serial_Numbers)-C_VI_J[2]
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+      }
+      # VII_たい, VII_たがる
+      if(1){
+        #一些准备工作
+        if(1){
+          #たがる
+          a<-which(M_Res[, 2]=="動詞"&M_Res[, 7]=="連用形")#可以后接“たがる”的所有动词的连用形活用
+          A<-paste0(M_Res[(a+1), 1], M_Res[(a+2), 1], M_Res[(a+3), 1])#粘连锚坐标之后的三个形态素
+          Matched_Within_A<-which(str_detect(A, "^たが.*$"))#查是否有匹配"たがる"的活用
+          Need_tobe_Sought_TaGaRu<-A[Matched_Within_A]#之后匹配“たがる”的各活用时，需要查找的字符串向量
+          TaGaRu<-a[Matched_Within_A]+1#分解匹配成功的字符串，确认其中首个形态素在M_Res中的序列号
+          #たい
+          temp_Tai<-which(M_Res[, 2]=="助動詞"&M_Res[, 8]=="たい")
+          Tai<-sort(setdiff(temp_Tai, TaGaRu))
+        }
+        #“たい”的活用
+        Pots_C_VII_M_Tai<-list(0, 0, 0, 0, 0, 0)
+        if(length(Tai)!=0){
+          if(1){
+            Pots_C_VII_M_Tai[[1]]<-Tai[which(M_Res[Tai, 9]=="タカロ")]
+            Pots_C_VII_M_Tai[[2]]<-Tai[which(str_detect(M_Res[Tai, 7], "連用テ接続|連用タ接続"))]
+            Pots_C_VII_M_Tai[[3]]<-Tai[which(M_Res[Tai, 7]=="基本形" & M_Res[Tai+1, 2]!="名詞")]
+            Pots_C_VII_M_Tai[[4]]<-Tai[which(M_Res[Tai, 7]=="基本形" & M_Res[Tai+1, 2]=="名詞")]
+            Pots_C_VII_M_Tai[[5]]<-Tai[which(M_Res[Tai, 7]=="仮定形")]
+            Pots_C_VII_M_Tai[[6]]<-Tai[which(M_Res[Tai, 7]=="連用ゴザイ接続")]
+          }
+          if(0){
+            C_VII_M_Tai<-c(length(which(M_Res[Tai, 9]=="タカロ")),
+                           length(which(str_detect(M_Res[Tai, 7], "連用テ接続|連用タ接続"))),
+                           length(which(M_Res[Tai, 7]=="基本形" & M_Res[Tai+1, 2]!="名詞")),
+                           length(which(M_Res[Tai, 7]=="基本形" & M_Res[Tai+1, 2]=="名詞")),
+                           length(which(M_Res[Tai, 7]=="仮定形")),
+                           length(which(M_Res[Tai, 7]=="連用ゴザイ接続"))
+            )
+          }
+        }
+        #“たがる”的活用
+        Pots_C_VII_M_TaGaRu<-list(0, 0, 0, 0, 0)
+        if(length(TaGaRu)!=0){
+          if(1){
+            Pots_C_VII_M_TaGaRu[[1]]<-TaGaRu[which(str_detect(Need_tobe_Sought_TaGaRu, "たがら|たがろ"))]
+            Pots_C_VII_M_TaGaRu[[2]]<-TaGaRu[which(str_detect(Need_tobe_Sought_TaGaRu, "たがり|たがっ"))]
+            Pots_C_VII_M_TaGaRu[[3]]<-TaGaRu[which(str_detect(Need_tobe_Sought_TaGaRu, "たがる")&M_Res[TaGaRu+2, 2]!="名詞")]
+            Pots_C_VII_M_TaGaRu[[4]]<-TaGaRu[which(str_detect(Need_tobe_Sought_TaGaRu, "たがる")&M_Res[TaGaRu+2, 2]=="名詞")]
+            Pots_C_VII_M_TaGaRu[[5]]<-TaGaRu[which(str_detect(Need_tobe_Sought_TaGaRu, "たがれ"))]
+          }
+          if(0){
+            C_VII_M_TaGaRu<-c(length(which(str_detect(Need_tobe_Sought_TaGaRu, "たがら|たがろ"))),
+                              length(which(str_detect(Need_tobe_Sought_TaGaRu, "たがり|たがっ"))),
+                              length(which(str_detect(Need_tobe_Sought_TaGaRu, "たがる")&M_Res[TaGaRu+2, 2]!="名詞")),
+                              length(which(str_detect(Need_tobe_Sought_TaGaRu, "たがる")&M_Res[TaGaRu+2, 2]=="名詞")),
+                              length(which(str_detect(Need_tobe_Sought_TaGaRu, "たがれ")))
+            )
+          }
+        }
+      }
+      # VIII_た/だ
+      if(1){
+        ## 计算终止形与连体形的频数
+        if(1){
+          TaDa<-which(str_detect(J_Res[, 10], "タ形"))
+          len_TaDa<-length(TaDa)
+          TaDa_End_Form<-length(TaDa[which(J_Res[TaDa+1, 4]!="名詞")])
+          TaDa_Attributive_Form<-len_TaDa-TaDa_End_Form
+        }
+        Pots_C_VIII_J<-list(0, 0, 0, 0)
+        if(1){
+          Pots_C_VIII_J[[1]]<-which(str_detect(J_Res[, 10], "タ系推量形|タ系省略推量形"))
+          Pots_C_VIII_J[[2]]<-TaDa[which(J_Res[TaDa+1, 4]!="名詞")]
+          Pots_C_VIII_J[[3]]<-setdiff(TaDa, Pots_C_VIII_J[[2]])
+          Pots_C_VIII_J[[4]]<-which(J_Res[, 10]=="タ系条件形")
+        }
+        if(0){
+          C_VIII_J<-c(length(which(str_detect(J_Res[, 10], "タ系推量形|タ系省略推量形"))),
+                      TaDa_End_Form,
+                      TaDa_Attributive_Form,
+                      length(which(J_Res[, 10]=="タ系条件形"))
+          )
+        }
+        rm(list=c("TaDa", "len_TaDa", "TaDa_End_Form", "TaDa_Attributive_Form"))
+      }
+      # IX_ようだ
+      if(1){
+        ##----
+        # 未然形：ようだろ                 a5, a8, a11
+        # 連用形：ようだっ、ようで、ように a2, a6, a7, a9, a10, a12
+        # 終止形：ようだ                   a1, a4_1
+        # 連体形：ような                   a3
+        # 仮定形：ようなら                 a4_2
+        ##----
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "よう"))
+        Pots_C_IX_J<-list(0, 0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          Matched_Morphemes_Serial_Numbers_1<-which(J_Res[, 3]=="ようだ")
+          Matched_Morphemes_Serial_Numbers_2<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="")]
+          #先对Matched_Morphemes_Serial_Numbers_1进行分解
+          if(1){
+            a1<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="基本形")]#;fun_returning(x=a1)# “ようだ”
+            a2<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本連用形")]#;fun_returning(a2)# “ように”
+            a3<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本連体形")]#;fun_returning(a3)# “ような”
+            a4<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="語幹")]#;fun_returning(a4)
+            if(1){
+              a4_1<-a4[which(J_Res[a4+1, 1]!="なら")]#;fun_returning(a4_1)# 相当于“ようだ”的终止形
+              a4_2<-a4[which(J_Res[a4+1, 1]=="なら")]#;fun_returning(a4_2)# “ようだ”的仮定形（的一部分）
+            }
+            a5<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本推量形")]#;fun_returning(a5)# “ようだろう”
+            a6<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ系連用テ形")]#;fun_returning(a6)# “ようで”
+            a7<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="デアル列基本形")]#;fun_returning(a7)# “ようである”
+            a8<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本省略推量形")]#;fun_returning(a8)# “ようだろ”
+            a9<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ系条件形")]#;fun_returning(a9)# “ようだったら”
+            a10<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ形")]#;fun_returning(a10, 1)# “ようだった” 
+          }
+          #再对Matched_Morphemes_Serial_Numbers_2进行分解
+          if(1){
+            a11<-Matched_Morphemes_Serial_Numbers_2[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers_2+1, 1], "^だろ"))] # “ようだろ”，未然形。
+            a12<-setdiff(Matched_Morphemes_Serial_Numbers_2, a11) # 对于“ように”，省略“に”；或者“ようであれば”。一言以概之，連用形。
+          }
+          #填充
+          #setdiff(Matched_Morphemes_Serial_Numbers, A)
+          if(1){
+            Pots_C_IX_J[[1]]<-sort(union(a5, a8, a11))
+            Pots_C_IX_J[[2]]<-sort(union(a2, a6, a7, a9, a10, a12))
+            Pots_C_IX_J[[3]]<-sort(union(a1, a4_1))
+            Pots_C_IX_J[[4]]<-a3
+            Pots_C_IX_J[[5]]<-a4_2
+          }
+          if(0){
+            C_IX_J<-c(length(c(a5, a8, a11)),
+                      length(c(a2, a6, a7, a9, a10, a12)),
+                      length(c(a1, a4_1)),
+                      length(a3),
+                      length(a4_2)
+            )
+          }
+          #从内存中清除各个object
+          rm(list=c("a1", "a2", "a3", "a4_1", "a4_2", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12", "Matched_Morphemes_Serial_Numbers", "Matched_Morphemes_Serial_Numbers_1", "Matched_Morphemes_Serial_Numbers_2"))
+        }
+      }
+      # X_らしい
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "らしい$"))
+        Pots_C_X_J<-list(0, 0, 0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            a<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="文語未然形")] # “らしからぬ”
+            b<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本連用形")] # “らしく”
+            c<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="タ形")] # “らしかっ”
+            d<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形")] # “らしい”
+            if(1){
+              d_1<-d[which(J_Res[d+1, 4]=="名詞")] # “連体形”
+              d_2<-setdiff(d, d_1) # “終止形”
+            }
+            e<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")] # “らしけれ”
+            f<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="文語連体形")] # “らしき”
+          }
+          if(1){
+            Pots_C_X_J[[1]]<-union(b, c)
+            Pots_C_X_J[[2]]<-d_2
+            Pots_C_X_J[[3]]<-d_1
+            Pots_C_X_J[[4]]<-e
+            Pots_C_X_J[[5]]<-a
+            Pots_C_X_J[[6]]<-f
+          }
+          if(0){
+            C_X_J<-c(length(c(b, c)),
+                     length(d_2),
+                     length(d_1),
+                     length(e),
+                     length(a),
+                     length(f)
+            )
+          }
+          rm(list=c("Matched_Morphemes_Serial_Numbers", "a", "b", "c", "d", "e", "f", "d_1", "d_2"))
+        }
+      }
+      # XI_ます
+      if(1){
+        ## 由于Juman++识别精度太低了，只能用MeCab的结果。
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(M_Res[, 8], "^まする*$"))
+        Pots_C_XI_M<-list(0, 0, 0, 0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          a<-Matched_Morphemes_Serial_Numbers[which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers, 7], "未然ウ接続|未然形"))]# 未然形
+          b<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="連用形")]# 連用形
+          c<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形")]
+          if(1){
+            c_1<-c[which(M_Res[c+1, 2]!="名詞")]
+            c_1_1<-NULL
+            c_1_2<-NULL
+            if(length(c_1)!=0){
+              c_1_1<-c(c_1[which(M_Res[c_1+1, 1]=="る")],# “まする”
+                       c[which(M_Res[c, 1]=="まする")])# “一些特殊情况，譬如：かえりみ_まする_に”
+              c_1_2<-setdiff(c_1, c_1_1)# 真正的“終止形”
+            }
+            c_2<-c[which(M_Res[c+1, 2]=="名詞")]# 連体形
+          }
+          d<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="仮定形")]# 仮定形
+          e<-Matched_Morphemes_Serial_Numbers[which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers, 7], "命令"))]# 命令形
+          if(1){
+            Pots_C_XI_M[[1]]<-a
+            Pots_C_XI_M[[2]]<-b
+            Pots_C_XI_M[[3]]<-c_1_2
+            Pots_C_XI_M[[4]]<-c_2
+            Pots_C_XI_M[[5]]<-d
+            Pots_C_XI_M[[6]]<-e
+            Pots_C_XI_M[[7]]<-c_1_1
+          }
+          if(0){
+            C_XI_M<-c(length(a),
+                      length(b),
+                      length(c_1_2),
+                      length(c_2),
+                      length(d),
+                      length(e),
+                      length(c_1_1)
+            )
+          }
+          #rm(list=c("a", "b", "c", "c_1", "c_1_1", "c_1_1_extra", "c_1_2", "c_2", "d", "e", "Matched_Morphemes_Serial_Numbers"))
+          rm(list=c("a", "b", "c", "c_1", "c_1_1", "c_1_2", "c_2", "d", "e", "Matched_Morphemes_Serial_Numbers"))
+        }
+      }
+      # XII_だ
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 8]=="だ")
+        Pots_C_XII_M<-list(0, 0, 0, 0, 0)
+        if(1){
+          Extra_1<-which(str_detect(M_Res[, 1], ".*なのに$") & M_Res[, 2]=="接続詞")
+          Extra_2<-which(M_Res[, 1]=="ので")
+          if(length(Matched_Morphemes_Serial_Numbers)!=0){
+            a<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="未然形")] # 未然形：“だろ”
+            b<-Matched_Morphemes_Serial_Numbers[which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers, 7], "連用形|連用タ接続"))];b<-c(b, Extra_2) # 連用形：“だっ／で”
+            if(1){
+              c_temp<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形")]
+              c_1<-c_temp[which(M_Res[c_temp+1, 1]=="のに")] # 其中，后接“のに”的需要择掉。
+            }
+            c<-setdiff(c_temp, c_1) # 終止形：“だ”
+            d<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="体言接続")];d<-c(d, Extra_1) # 連体形：“な”
+            e<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="仮定形")] # 仮定形：“なら”
+            if(1){
+              Pots_C_XII_M[[1]]<-a
+              Pots_C_XII_M[[2]]<-b
+              Pots_C_XII_M[[3]]<-c
+              Pots_C_XII_M[[4]]<-d
+              Pots_C_XII_M[[5]]<-e
+            }
+            if(0){
+              C_XII_M<-c(length(a),
+                         length(b),
+                         length(c),
+                         length(d),
+                         length(e)
+              )
+            }
+            rm(list=c("Extra_1", "Extra_2", "a", "b", "c_temp", "c_1", "c", "d", "e"))  
+          }
+        }
+      }
+      # XIII_です
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[ ,2]=="助動詞"&M_Res[, 8]=="です")
+        Pots_C_XIII_M<-list(0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          special<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形")]
+          following_noun<-NULL#后接名词
+          following_non_noun<-NULL#后接非名词
+          if(length(special)!=0){
+            following_noun<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers+1, 2]=="名詞"|M_Res[Matched_Morphemes_Serial_Numbers+1, 8]=="もん")] # 連体形
+            following_non_noun<-setdiff(special, following_noun) # 終止形
+          }
+          if(1){
+            Pots_C_XIII_M[[1]]<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="未然形")]
+            Pots_C_XIII_M[[2]]<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="連用形")]
+            Pots_C_XIII_M[[3]]<-following_non_noun
+            Pots_C_XIII_M[[4]]<-following_noun
+          }
+          if(0){
+            C_XIII_M<-c(length(which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="未然形")),
+                        length(which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="連用形")),
+                        length(following_non_noun),
+                        length(following_noun))
+          }
+          rm(list=c("Matched_Morphemes_Serial_Numbers", "special", "following_non_noun", "following_noun"))
+        }
+      }
+      # XIV_そうだ（様態）& XV_そうだ（伝聞）
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="そうだ"&J_Res[, 6]=="形容詞性述語接尾辞"|J_Res[, 8]=="助動詞そうだ型")
+        Pots_C_XIV_J<-list(0, 0, 0, 0, 0, 0)
+        Pots_C_XV_J<-list(0, 0, 0, 0, 0)
+        #振り分け(第一段階)
+        if(1){
+          #様態
+          #与动词/助动词/形容词/形容动词的常规接续
+          a<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers-1, 10]=="基本連用形"|J_Res[Matched_Morphemes_Serial_Numbers-1, 10]=="語幹"|J_Res[Matched_Morphemes_Serial_Numbers-1, 4]=="名詞")]
+          #変則接続（与助动词【ない】，【たい】需要在二者中间加入一个【さ】）
+          if(1){
+            linked_preceding_2_Morphemes<-cbind(J_Res[Matched_Morphemes_Serial_Numbers-2, 1], J_Res[Matched_Morphemes_Serial_Numbers-1, 1])
+            adhered_preceding_2_Morphemes<-fun_glue(linked_preceding_2_Morphemes, direction=1, sep="")
+          }
+          b<-Matched_Morphemes_Serial_Numbers[which(str_detect(adhered_preceding_2_Morphemes, ".*[たな]さ$"))]
+          temp_Souda_state<-c(a, b)
+          #伝聞
+          temp_Souda_hearsay<-setdiff(Matched_Morphemes_Serial_Numbers, temp_Souda_state)
+          rm(list=c("a", "b", "linked_preceding_2_Morphemes", "adhered_preceding_2_Morphemes", "Matched_Morphemes_Serial_Numbers"))
+        }
+        #振り分け（第二段階）
+        if(1){
+          #【様態】
+          if(length(temp_Souda_state)!=0){
+            state_a<-temp_Souda_state[which(str_detect(J_Res[temp_Souda_state, 1], "^そう(だろう?$|でしょう?$)"))]#未然
+            state_b<-temp_Souda_state[which(str_detect(J_Res[temp_Souda_state, 1], "^そう(だっ|で$|に$)"))]#連用
+            state_c<-temp_Souda_state[which(str_detect(J_Res[temp_Souda_state, 1], "^そう(だ$|です$|でした$|でして$)"))]#終止
+            state_d<-temp_Souda_state[which(J_Res[temp_Souda_state, 1]=="そうな")]#連体
+            state_suspicion<-temp_Souda_state[which(J_Res[temp_Souda_state, 1]=="そう")]#尚待细分
+            state_e<-NULL
+            state_f<-NULL
+            if(length(state_suspicion)!=0){
+              state_e<-state_suspicion[which(J_Res[state_suspicion+1, 1]=="なら")]#仮定
+              state_f<-setdiff(state_suspicion, state_e)#語幹
+            }
+            if(1){
+              Pots_C_XIV_J[[1]]<-state_a
+              Pots_C_XIV_J[[2]]<-state_b
+              Pots_C_XIV_J[[3]]<-state_c
+              Pots_C_XIV_J[[4]]<-state_d
+              Pots_C_XIV_J[[5]]<-state_e
+              Pots_C_XIV_J[[6]]<-state_f
+            }
+            if(0){
+              C_XIV_J<-c(length(state_a),
+                         length(state_b),
+                         length(state_c),
+                         length(state_d),
+                         length(state_e),
+                         length(state_f))
+            }
+            rm(list=c("temp_Souda_state", "state_suspicion", "state_a", "state_b", "state_c", "state_d", "state_e", "state_f"))
+          }
+          #【伝聞】
+          if(length(temp_Souda_hearsay)!=0){
+            hearsay_a<-temp_Souda_hearsay[which(str_detect(J_Res[temp_Souda_hearsay, 1], "^そう(だろう?$|でしょう?$)"))]#未然
+            hearsay_b<-temp_Souda_hearsay[which(J_Res[temp_Souda_hearsay, 1]=="そうで")]#連用
+            hearsay_c<-temp_Souda_hearsay[which(str_detect(J_Res[temp_Souda_hearsay, 1], "^そう(だ$|です$|でした$|でして$)"))]#終止
+            hearsay_d<-temp_Souda_hearsay[which(J_Res[temp_Souda_hearsay, 1]=="そうな")]#連体
+            hearsay_e<-temp_Souda_hearsay[which(J_Res[temp_Souda_hearsay, 1]=="そう")]#語幹
+            #temp_hearsay<-c(hearsay_a, hearsay_b, hearsay_c, hearsay_d, hearsay_e)
+            if(1){
+              Pots_C_XV_J[[1]]<-hearsay_a
+              Pots_C_XV_J[[2]]<-hearsay_b
+              Pots_C_XV_J[[3]]<-hearsay_c
+              Pots_C_XV_J[[4]]<-hearsay_d
+              Pots_C_XV_J[[5]]<-hearsay_e
+            }
+            if(0){
+              C_XV_J<-c(length(hearsay_a),
+                        length(hearsay_b),
+                        length(hearsay_c),
+                        length(hearsay_d),
+                        length(hearsay_e))
+            }
+            rm(list=c("temp_Souda_hearsay", "hearsay_a", "hearsay_b", "hearsay_c", "hearsay_d", "hearsay_e"))
+          }
+        }
+      }
+    }#チェック済み
+    ##文語体
+    if(1){
+      ## 1_"しめる"
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="しめる"&J_Res[, 4]=="接尾辞")
+        Pots_L_1_J<-list(0, 0, 0, 0, 0, 0)
+        if(1){
+          # extra
+          # 动词【たらしめる（足らしめる）】的“連用形”无法被Juman++正确检测出，故需要择出来单独处理。
+          extra<-length(unlist(str_match_all(x, pattern="[足た]らしめ[、て]")))
+          extra_pos<-NULL
+          if(extra!=0){
+            extra_pos_temp<-which(str_detect(M_Res[,1], "^[足た]ら$"))+1
+            extra_pos<-extra_pos_temp[which(M_Res[extra_pos+1,1]=="しめ")]
+          }
+        }
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            a<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "未然形|意志形"))] # 未然形
+            b<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "^タ[系形].*|基本連用形"))] 
+            b<-c(b, extra) # 連用形
+            c<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形")]
+            if(1){
+              c_2<-c[which(J_Res[c+1, 4]=="名詞")] # 連体形
+              c_1<-setdiff(c, c_2) # 終止形
+            }
+            d<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")] # 仮定形
+            e<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "命令形"))] # 命令形
+          }
+          if(1){
+            Pots_L_1_J[[1]]<-a
+            Pots_L_1_J[[2]]<-b
+            Pots_L_1_J[[3]]<-c_1
+            Pots_L_1_J[[4]]<-c_2
+            Pots_L_1_J[[5]]<-d
+            Pots_L_1_J[[6]]<-e
+          }
+          if(0){
+            L_1_J<-c(length(a),
+                     length(b),
+                     length(c_1),
+                     length(c_2),
+                     length(d),
+                     length(e))  
+          }
+          rm(list=c("a", "b", "c", "c_1", "c_2", "d", "e", "Matched_Morphemes_Serial_Numbers", "extra"))
+        }
+      }
+      ## 2_"む"
+      if(1){
+        ## Comment:
+        ##----
+        #在查阅了文献（下2行）之后，将“[ぬん]ばかり”中的“[ぬん]”也视为“む”的变形（或音便）
+        #小林賢次(1994). 「（言わ）んばかり」考：国語辞典類の意味記述をめぐって.日本語研究. 14, 109-116.
+        #小林賢次(1995). 「（言わ）んばかり」考：慣用表現の成立と展開. 日本語研究. 15, 194-204.
+        ##----
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 6]=="不変化型"&M_Res[, 7]=="基本形"&M_Res[, 8]=="ん")
+        Pots_L_2_M<-list(0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          Attributive_Form<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers+1, 2]=="名詞"|M_Res[Matched_Morphemes_Serial_Numbers+1, 1]=="ばかり")]
+          End_Form<-setdiff(Matched_Morphemes_Serial_Numbers, Attributive_Form)
+          if(1){
+            Pots_L_2_M[[1]]<-End_Form
+            Pots_L_2_M[[2]]<-Attributive_Form
+          }
+          if(0){
+            L_2_M<-c(length(End_Form), length(Attributive_Form))
+          }
+          rm(list=c("Matched_Morphemes_Serial_Numbers", "Attributive_Form", "End_Form"))
+        }
+      }
+      ## 3_"き"
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 6]=="文語・キ")
+        extra<-unlist(str_match_all(x, "[来き]たりし|[来き]し方"))
+        if(length(extra)!=0){
+          if(str_detect(x, "[来き]たりし")){#ここのxは純然たる文字列であるため，any()関数を使う必然性がない
+            if(str_detect(x, "来")){
+              extra_pos_temp<-which(M_Res[,1]=="来")
+              extra_pos<-extra_pos_temp[which(M_Res[extra_pos_temp+1, 1]=="たり"&M_Res[extra_pos_temp+2, 1]=="し")]
+            }else{
+              extra_pos_temp<-which(M_Res[, 1]=="きたり")
+              extra_pos<-extra_pos_temp[which(M_Res[extra_pos_temp+1, 1]=="し")]
+            }
+          }else{
+            extra_pos<-which(str_detect(M_Res[,1], "^[来き]し.*$"))
+          }
+        }
+        Pots_L_3_M<-list(0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_L_3_M[[1]]<-which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="き")
+            Pots_L_3_M[[2]]<-union(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="し"), extra_pos)
+          }
+          if(0){
+            L_3_M<-c(length(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="き")),
+                     length(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="し"))+length(extra))
+          }
+          rm(list=c("Matched_Morphemes_Serial_Numbers", "extra"))
+        }
+      }
+      ## 4_"けり"
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 6]=="文語・ケリ"&M_Res[, 8]=="けり")
+        Pots_L_4_M<-list(0)
+        extra<-unlist(str_match_all(x, "によりけり"))
+        extra_pos_temp<-NULL
+        extra_pos<-0
+        if(length(extra)!=0){
+          extra_pos_temp<-which(M_Res[,1]=="により")
+          extra_pos<-extra_pos_temp[which(M_Res[extra_pos_temp+1, 1]=="けり")]+1
+        }
+        if(length(Matched_Morphemes_Serial_Numbers)>0){
+          if(1){
+            Pots_L_4_M[[1]]<-sort(union(Matched_Morphemes_Serial_Numbers, extra_pos))
+          }
+          if(0){
+            L_4_M<-length(Matched_Morphemes_Serial_Numbers)+length(extra)  
+          }
+        }else{
+          if(1){
+            Pots_L_4_M[[1]]<-extra_pos
+          }
+          if(0){
+            Pots_L_4_M[[1]]<-length(extra_pos)
+          }
+        }
+        rm(list=c("Matched_Morphemes_Serial_Numbers", "extra", "extra_pos", "extra_pos_temp"))
+      }
+      ## 5_"つ"
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 8]=="つ")
+        Pots_L_5_M<-list(0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_L_5_M[[1]]<-Matched_Morphemes_Serial_Numbers
+          }
+          if(0){
+            L_5_M<-length(Matched_Morphemes_Serial_Numbers)
+          }
+        }
+        rm(Matched_Morphemes_Serial_Numbers)
+      }
+      ## 6_"ぬ"
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 6]=="不変化型"&M_Res[, 8]=="ぬ")
+        Pots_L_6_M<-list(0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          #L_6_M<-length(which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="動詞"&M_Res[Matched_Morphemes_Serial_Numbers-1, 7]=="連用形"))
+          if(1){
+            Pots_L_6_M[[1]]<-Matched_Morphemes_Serial_Numbers
+          }
+          if(0){
+            L_6_M<-length(Matched_Morphemes_Serial_Numbers)  
+          }
+        }
+        rm(Matched_Morphemes_Serial_Numbers)
+      }
+      ## 7_"たり"（完了）; 14_"たり"（断定）
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which((M_Res[, 1]=="たり"&M_Res[, 3]=="並立助詞")|(M_Res[, 6]=="文語・ナリ"&M_Res[, 8]=="たり"))
+        Pots_L_7_M<-list(0, 0, 0, 0, 0, 0)
+        pos_extra_sitarigao<-0
+        Pots_L_14_M<-list(0, 0, 0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          #マッチング
+          if(1){
+            extra_remove<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 1]=="し"&M_Res[Matched_Morphemes_Serial_Numbers+1, 1]=="顔")]#「したり顔」対策
+            Matched_Morphemes_Serial_Numbers<-setdiff(Matched_Morphemes_Serial_Numbers, extra_remove)
+            extra_add_0_pre<-which(str_detect(M_Res[, 1], "^た[られる]$")&M_Res[, 6]!="文語・ナリ")#对于像「堂々たる」这种以「たる」结尾的匹配字符串的基本形，未然形和假定形，应收尽收。
+            extra_add_0<-extra_add_0_pre[which(M_Res[extra_add_0_pre-1, 2]=="副詞"|M_Res[extra_add_0_pre-1, 7]=="連用形"|str_detect(M_Res[extra_add_0_pre-1, 1], ".*[き来]$"))]
+            extra_add_1<-which(str_detect(M_Res[, 2], "^名詞$|^連体詞$")&str_detect(M_Res[, 1], ".+たる"))#「平然たる」や「確たる」などへの対策
+            extra_add_2_pre<-which(M_Res[, 2]=="名詞"&str_detect(M_Res[, 1], "^た[りるれ].+$"))#「られたる者」対策
+            extra_add_2<-extra_add_2_pre[which(M_Res[extra_add_2_pre-1, 7]=="連用形")]
+            pos_extra_sitarigao<-which(M_Res[, 1]=="したり顔")#2021_4_23追加
+            extra_sitarigao<-length(unlist(str_match_all(x, "したり顔")))#「したり顔」を回収
+            Matched_Morphemes_Serial_Numbers<-sort(c(Matched_Morphemes_Serial_Numbers, extra_add_0, extra_add_1, extra_add_2))#汇总
+            #----
+            #length(which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers], "たる")))#66 全部捕捉到了
+            #length(which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers], "たり")))#11 全部捕捉到了
+            #length(which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers], "たら")))#12 全部捕捉到了
+            #----
+            rm(list=c("extra_remove", "extra_add_0_pre", "extra_add_0", "extra_add_1", "extra_add_2_pre", "extra_add_2"))#从内存中清空用済み的对象
+          }
+          #振り分けⅠ（将マッチング所得的形态素编号分配给“たり（完了助動詞）”和“たり（断定助動詞）”）
+          if(1){
+            Just_Before_Verb<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="動詞")]#前接形态素为动词。
+            Just_Before_Verb_Continuative_Form<-Just_Before_Verb[which(M_Res[Just_Before_Verb-1, 7]=="連用形")]#前接动词连用形（完了）。
+            Just_Before_Noun<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="名詞")]#前接形态素为名词。
+            extra_special_circumstances<-Just_Before_Noun[which(str_detect(M_Res[Just_Before_Noun-1, 1], ".+来$"))]#特殊情况，针对“冬来たりなば”。
+            extra_special_circumstances_1<-Matched_Morphemes_Serial_Numbers[which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers, 1], ".+来たる"))]
+            #----
+            #Just_Before_Verb_Basic_Form<-setdiff(Just_Before_Verb, Just_Before_Verb_Continuative_Form)#前接动词非连用形（断定）。
+            #Just_Before_Adverb<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="副詞")]#前接形态素为副词。
+            #Just_Before_Postposition<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="助詞")]#前接形态素为助词。
+            #Just_Before_Adjective<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="形容詞")]#前接形态素为形容词。
+            #Just_Before_Mark<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="記号")]#前接形态素为记号。
+            #Just_Before_Prenominal<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="連体詞")]#前接形态素为连体词。
+            #A<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="動詞"&M_Res[Matched_Morphemes_Serial_Numbers-1, 7]=="連用形")]
+            #temp_Completion<-c(Just_Before_Verb_Continuative_Form, extra_special_circumstances)
+            #----
+            #完了
+            Completion<-sort(c(Just_Before_Verb_Continuative_Form, extra_special_circumstances, extra_special_circumstances_1))
+            #断定
+            Conclusion<-setdiff(Matched_Morphemes_Serial_Numbers, Completion)
+            #----
+            #temp_Conclusion<-c(Just_Before_Verb_Basic_Form, setdiff(Just_Before_Noun, extra_special_circumstances), Just_Before_Adverb, Just_Before_Postposition, Just_Before_Adjective, Just_Before_Mark, Just_Before_Prenominal)
+            #特例：“福来たる”及其中助动词「たり」的一系列的活用
+            #Honyarara_kitaru<-B[which(str_detect(M_Res[B, 1], ".+来たる"))]
+            #B<-setdiff(B, Honyarara_kitaru)
+            #A<-sort(c(A, Honyarara_kitaru))
+            #c(Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="記号")],
+            #  Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="動詞"&M_Res[Matched_Morphemes_Serial_Numbers-1, 7]!="連用形")],
+            #  Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="副詞")],
+            #  Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="名詞")],
+            #  Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="助詞")],
+            #  Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="形容詞")],
+            #  Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers-1, 2]=="連体詞")])
+            #----
+          }
+          #振り分けⅡ（将振り分けⅠ后的两个“たり”分配给各个活用形）
+          if(1){
+            #完了
+            #----
+            Imperfective_Form<-Completion[which(M_Res[Completion, 1]=="たら")]#未然形
+            temp<-Completion[which(M_Res[Completion, 1]=="たり")]
+            End_Form<-temp[which(str_detect(M_Res[temp+1, 2], "名詞|記号"))]#終止形
+            Continuative_Form<-setdiff(temp, End_Form)#連用形
+            Attributive_Form<-Completion[which(str_detect(M_Res[Completion, 1], "^たる.*$"))]#連体形
+            Attributive_Form_extra<-Completion[which(str_detect(M_Res[Completion, 1], "^.+来たる$"))]
+            Attributive_Form<-sort(union(Attributive_Form, Attributive_Form_extra))
+            temp_1<-Completion[which(str_detect(M_Res[Completion, 1], "^たれ.*$"))]
+            #Conditional_Form<-Completion[which(str_detect(M_Res[Completion, 1], "^たれ.*$")&str_detect(M_Res[Completion+1, 1], "^ば.*$"))]#仮定形
+            Conditional_Form<-temp_1[which(str_detect(M_Res[temp_1+1, 1], "^ば.*$"))]
+            Imperative_Form<-setdiff(temp_1, Conditional_Form)#命令形
+            if(1){
+              Pots_L_7_M[[1]]<-Imperfective_Form#未然形
+              Pots_L_7_M[[2]]<-Continuative_Form#连用形
+              Pots_L_7_M[[3]]<-End_Form#终止形
+              Pots_L_7_M[[4]]<-Attributive_Form#连体形
+              Pots_L_7_M[[5]]<-Conditional_Form#假定形
+              Pots_L_7_M[[6]]<-Imperative_Form#命令形
+            }
+            if(0){
+              L_7_M<-c(length(Imperfective_Form),
+                       length(Continuative_Form),
+                       length(End_Form),
+                       length(Attributive_Form),
+                       length(Conditional_Form),
+                       length(Imperative_Form))
+            }
+            rm(list=c("Imperfective_Form", "End_Form", "Continuative_Form", "Attributive_Form", "Conditional_Form", "Imperative_Form", "temp", "temp_1"))
+            #----
+            #断定
+            #----
+            Imperfective_Form<-Conclusion[which(M_Res[Conclusion, 1]=="たら")]#未然形
+            temp<-Conclusion[which(M_Res[Conclusion, 1]=="たり")]
+            End_Form<-temp[which(str_detect(M_Res[temp+1, 2], "名詞|記号"))]#終止形
+            Continuative_Form<-setdiff(temp, End_Form)#連用形
+            Attributive_Form<-Conclusion[which(str_detect(M_Res[Conclusion, 1], "^.*たる$"))]#連体形
+            temp_1<-Conclusion[which(M_Res[Conclusion, 1]=="たれ")]
+            Conditional_Form<-temp_1[which(M_Res[temp_1+1, 1]=="ば")]#仮定形
+            Imperative_Form<-setdiff(temp_1, Conditional_Form)#命令形
+            if(1){
+              Pots_L_14_M[[1]]<-Imperfective_Form#未然形
+              Pots_L_14_M[[2]]<-Continuative_Form#连用形
+              Pots_L_14_M[[3]]<-End_Form#终止形
+              Pots_L_14_M[[4]]<-Attributive_Form#连体形
+              Pots_L_14_M[[5]]<-Conditional_Form#假定形
+              Pots_L_14_M[[6]]<-Imperative_Form#命令形
+            }
+            if(0){
+              L_14_M<-c(length(Imperfective_Form),
+                        length(Continuative_Form),
+                        length(End_Form),
+                        length(Attributive_Form),
+                        length(Conditional_Form),
+                        length(Imperative_Form))
+            }
+            rm(list=c("Imperfective_Form", "End_Form", "Continuative_Form", "Attributive_Form", "Conditional_Form", "Imperative_Form", "temp", "temp_1"))
+            #----
+          }
+        }
+        if(1){
+          Pots_L_7_M[[3]]<-sort(union(Pots_L_7_M[[3]], pos_extra_sitarigao))
+        }
+        if(0){
+          L_7_M[3]<-L_7_M[3]+length(unlist(str_match_all(x, "したり顔")))  
+        }
+      }
+      ## 8_"たし"
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 1]=="た"&M_Res[, 2]=="助動詞")
+        Pots_L_8_M<-list(0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_L_8_M[[1]]<-which(M_Res[Matched_Morphemes_Serial_Numbers-2, 2]=="動詞"&M_Res[Matched_Morphemes_Serial_Numbers-2, 7]=="未然形"&#从“た”往左数2个词素是动词未然形
+                                     M_Res[Matched_Morphemes_Serial_Numbers-1, 1]=="れ"&#从“た”往左数1个词素是“れ”
+                                     M_Res[Matched_Morphemes_Serial_Numbers+1, 1]=="し")#“た”往右数1个词素是“し”
+          }
+          if(0){
+            L_8_M<-length(which(M_Res[Matched_Morphemes_Serial_Numbers-2, 2]=="動詞"&M_Res[Matched_Morphemes_Serial_Numbers-2, 7]=="未然形"&M_Res[Matched_Morphemes_Serial_Numbers-1, 1]=="れ"&M_Res[Matched_Morphemes_Serial_Numbers+1, 1]=="し"))
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+      }
+      ## 9_"べし"
+      if(1){
+        Pots_L_9_M<-list(0, 0, 0, 0)
+        if(0){
+          Imperfective_Form<-unlist(str_match_all(x, "[べ可]から"))
+          Continuative_Form<-unlist(str_match_all(x, "[べ可]く"))
+          End_Form<-unlist(str_match_all(x, "[べ可]し"))
+          Attributive_Form<-unlist(str_match_all(x, "[べ可]き"))
+          L_9_J<-c(length(Imperfective_Form),
+                   length(Continuative_Form),
+                   length(End_Form),
+                   length(Attributive_Form))
+        }
+        if(1){
+          #事前に“べし”及び一連の活用形について表記の一本化を行った，以下のスクリプトに何の問題もない．
+          Imperfective_Form<-which(M_Res[, 1]=="べから")
+          Continuative_Form<-which(M_Res[, 1]=="べく")
+          End_Form<-which(M_Res[, 1]=="べし")
+          Attributive_Form<-which(M_Res[, 1]=="べき")
+          Pots_L_9_M[[1]]<-Imperfective_Form
+          Pots_L_9_M[[2]]<-Continuative_Form
+          Pots_L_9_M[[3]]<-End_Form
+          Pots_L_9_M[[4]]<-Attributive_Form
+        }
+        rm(list=c("Imperfective_Form", "Continuative_Form", "End_Form", "Attributive_Form"))
+      }
+      ## 10_"まじ"
+      if(1){
+        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 6]=="文語・マジ"&M_Res[, 8]=="まじ")
+        Pots_L_12_M<-list(0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          if(1){
+            Pots_L_12_M[[1]]<-which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="まじ"&M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形")
+            Pots_L_12_M[[2]]<-which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="まじき"&M_Res[Matched_Morphemes_Serial_Numbers, 7]=="体言接続")  
+          }
+          if(0){
+            L_12_M<-c(length(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="まじ"&M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形")),
+                      length(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="まじき"&M_Res[Matched_Morphemes_Serial_Numbers, 7]=="体言接続")))  
+          }
+          rm(Matched_Morphemes_Serial_Numbers)
+        }
+      }
+      ## 11_"なり"
+      if(1){
+        if(1){
+          temp_0<-which(str_detect(M_Res[, 1], "^な[らりれ]$"))
+          if(length(temp_0)!=0){
+            a<-temp_0[which(str_detect(M_Res[temp_0-1, 2], "名詞|接続詞|副詞|助詞|接頭詞")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[し|す]).*$"))]
+            b<-temp_0[which(M_Res[temp_0-2, 2]=="名詞"&str_detect(M_Res[temp_0-1, 1], "^へ|ばかり$")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[しす]|た[くい]|たかっ).*$"))]
+            c<-temp_0[which(M_Res[temp_0-1, 2]=="動詞"&M_Res[temp_0-1, 7]=="基本形")]
+            d<-temp_0[which(M_Res[temp_0-1, 7]=="体言接続")]
+            e<-temp_0[which(str_detect(M_Res[temp_0-1, 2], "名詞|接続詞|副詞|接頭詞")&M_Res[temp_0, 1]=="なれ"&M_Res[temp_0+1, 1]=="ば"&M_Res[temp_0+2, 1]=="こそ")]
+            f<-temp_0[which(str_detect(M_Res[temp_0-1, 2], "名詞|接続詞|副詞|接頭詞")&M_Res[temp_0, 1]=="なら"&str_detect(M_Res[temp_0+1, 1], "^ず|ぬ$"))]
+            temp_0<-union(c(a, b, c, d, e, f))
+            rm(list=c("a", "b", "c", "d", "e", "f"))
+          }
+          temp_1<-which(str_detect(M_Res[, 1], "^.+なる$"))
+          temp_1<-temp_1[which(M_Res[temp_1+1, 2]=="名詞")]
+          temp_2<-which(M_Res[, 1]=="なる")
+          temp_2<-temp_2[which(str_detect(M_Res[temp_2-1, 2], "名詞|接続詞|副詞|接頭詞")&M_Res[temp_2+1, 2]=="名詞")]
+        }
+        Matched_Morphemes_Serial_Numbers<-sort(unique(c(temp_0, temp_1, temp_2)))
+        Pots_L_13_M<-list(0, 0, 0, 0)
+        if(length(Matched_Morphemes_Serial_Numbers)!=0){
+          Imperfective_Form<-Matched_Morphemes_Serial_Numbers[which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers, 1], ".*なら.*"))]
+          End_Form<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="なり")]
+          Attributive_Form<-Matched_Morphemes_Serial_Numbers[which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers, 1], ".*なる$"))]
+          Conditional_Form<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="なれ")]
+          if(1){
+            Pots_L_13_M[[1]]<-Imperfective_Form
+            Pots_L_13_M[[2]]<-End_Form
+            Pots_L_13_M[[3]]<-Attributive_Form
+            Pots_L_13_M[[4]]<-Conditional_Form  
+          }
+          if(0){
+            L_13_M<-c(length(Imperfective_Form),
+                      length(End_Form),
+                      length(Attributive_Form),
+                      length(Conditional_Form))
+          }
+          rm(list=c("Matched_Morphemes_Serial_Numbers", "temp_0", "temp_1", "temp_2", "Imperfective_Form", "End_Form", "Attributive_Form", "Conditional_Form"))
+        }
+        if(1){
+          if(any(str_detect(x, "大なり小なり"))){#对“大なり小なり”进行特殊处理
+            Nari_pos<-which(M_Res[,1]=="なり")
+            first_Nari_pos <-Nari_pos[which(M_Res[Nari_pos-1, 1]=="大")]
+            second_Nari_pos<-Nari_pos[which(M_Res[Nari_pos-1, 1]=="小")]
+            Pots_L_13_M[[2]]<-sort(unique(c(Pots_L_13_M[[2]], first_Nari_pos, second_Nari_pos)))
+          }
+        }
+        if(0){
+          L_13_M[2]<-L_13_M[2]+2*length(unlist(str_match_all(x, "大なり小なり")))
+        }
+      }
+      ## 13_"ごとし"
+      if(1){
+        temp<-which(str_detect(J_Res[, 1], "^(如|若|ごと)[くしき]$"))
+        Pots_L_15_J<-list(0, 0, 0)
+        if(1){
+          Pots_L_15_J[[1]]<-temp[which(str_detect(J_Res[temp, 1], "^(如|若|ごと)く$"))]
+          Pots_L_15_J[[2]]<-temp[which(str_detect(J_Res[temp, 1], "^(如|若|ごと)し$"))]
+          Pots_L_15_J[[3]]<-temp[which(str_detect(J_Res[temp, 1], "^(如|若|ごと)き$"))]
+        }
+        if(0){
+          L_15_J<-c(length(temp[which(str_detect(J_Res[temp, 1], "^(如|若|ごと)く$"))]),
+                    length(temp[which(str_detect(J_Res[temp, 1], "^(如|若|ごと)し$"))]),
+                    length(temp[which(str_detect(J_Res[temp, 1], "^(如|若|ごと)き$"))]))
+        }
+        rm(temp)
+      }
+    }#チェック済み
+  }
+  #最后，将上述两个模块的结果整合
+  if(1){
+    #4/14更新
+    if(1){
+      #为助动词词素准备最深层标签，即活用形
+      CFT4AuxVerbs_コウゴ<-list(#此处的对象名前半部分的“CFT4AuxVerbs”为“Conjugated Forms Tag for Auxiliary Verbs”的缩写；后半部分的“コウゴ”为其字面意思，即“口語形”。
+        #----
+        Full_Set,#I_せる/らせる
+        Full_Set,#II_れる/られる
+        Full_Set[-6],#III_ない
+        Full_Set[2:5],#IV_ぬ
+        Full_Set[3:4],#V_う/よう
+        Full_Set[3:4],#VI_まい
+        c(Full_Set[-6], "連用ゴザイ接続"),#VII_たい
+        Full_Set[-6],#VII_たがる
+        Full_Set[-c(1, 6)],#VIII_た/だ
+        Full_Set[-6],#IX_ようだ
+        c(Full_Set[2:5], "文語未然形", "文語連体形"),#X_らしい
+        c(Full_Set, "古い終止形・連体形"),#XI_ます
+        c(Full_Set[-6]),#XII_だ
+        c(Full_Set[1:4]),#XIII_です
+        c(Full_Set[1:5], "語幹"),#XIV_そうだ（様態）
+        c(Full_Set[1:4], "語幹")#XV_そうだ（伝聞）
+        #----
+      )
+      CFT4AuxVerbs_ブンゴ<-list(#此处的对象名前半部分的“CFT4AuxVerbs”为“Conjugated Forms Tag for Auxiliary Verbs”的缩写；后半部分的“ブンゴ”为其字面意思，即“文語形”。
+        #----
+        Full_Set,#1_しめる
+        Full_Set[3:4],#2_む
+        Full_Set[3:4],#3_き
+        Full_Set[3],#4_けり
+        Full_Set[3],#5_つ
+        Full_Set[3],#6_ぬ
+        Full_Set,#7_たり（完了）
+        Full_Set[3],#8_たし
+        Full_Set[1:4],#9_べし
+        Full_Set[3:4],#10_まじ
+        Full_Set[-c(2, 6)],#11_なり
+        Full_Set,#12_たり（断定）
+        Full_Set[2:4]#13_ごとし
+        #----
+      )
+      #制作最深层标签
+      if(1){
+        #最深层标签构成模式为：（助动词）基本型+活用形
+        Deepest_コウゴ<-list()#口语体助动词最深层标签
+        Deepest_ブンゴ<-list()#文语体助动词最深层标签
+        for(i in 1:16){
+          Deepest_コウゴ[[i]]<-paste(Colloquial_Style_Basic_Forms[i], CFT4AuxVerbs_コウゴ[[i]], sep="_")
+        }
+        for(i in 1:13){
+          Deepest_ブンゴ[[i]]<-paste(Literary_Style_Basic_Forms[i], CFT4AuxVerbs_ブンゴ[[i]], sep="_")
+        }
+      }
+      #将存储了词素解析结果中各助动词（口语体）活用形行编号的list对象统合为一个新的list对象。
+      POTS_A<-list(Pots_C_I_J,         #1  J -
+                   Pots_C_II_J,        #2  J -
+                   Pots_C_III_J,       #3  J -
+                   Pots_C_IV_J,        #4  J -
+                   Pots_C_V_J,         #5  J -
+                   Pots_C_VI_J,        #6  J -
+                   Pots_C_VII_M_Tai,   #7  M +
+                   Pots_C_VII_M_TaGaRu,#8  M +
+                   Pots_C_VIII_J,      #9  J -
+                   Pots_C_IX_J,        #10 J -
+                   Pots_C_X_J,         #11 J -
+                   Pots_C_XI_M,        #12 M +
+                   Pots_C_XII_M,       #13 M +
+                   Pots_C_XIII_M,      #14 M +
+                   Pots_C_XIV_J,       #15 J -
+                   Pots_C_XV_J)        #16 J -
+      names(POTS_A)<-Colloquial_Style_Basic_Forms
+      for(i in 1:16){#为口语体助动词赋名以最深层标签
+        names(POTS_A[[i]])<-Deepest_コウゴ[[i]]
+      }
+      #将存储了词素解析结果中各助动词（文语体）活用形行编号的list对象统合为一个新的list对象。
+      POTS_B<-list(Pots_L_1_J,         #1  J -
+                   Pots_L_2_M,         #2  M +
+                   Pots_L_3_M,         #3  M +
+                   Pots_L_4_M,         #4  M +
+                   Pots_L_5_M,         #5  M +
+                   Pots_L_6_M,         #6  M +
+                   Pots_L_7_M,         #7  M +
+                   Pots_L_8_M,         #8  M +
+                   Pots_L_9_M,         #9  M +
+                   Pots_L_12_M,        #10 M + 
+                   Pots_L_13_M,        #11 M +
+                   Pots_L_14_M,        #12 M +
+                   Pots_L_15_J)        #13 J -
+      names(POTS_B)<-Literary_Style_Basic_Forms
+      for(i in 1:13){#为文语体助动词赋名以最深层标签
+        names(POTS_B[[i]])<-Deepest_ブンゴ[[i]]
+      }
+      POTS_AB<-list(POTS_A, POTS_B)#将上述2者并为1个list对象
+      #将POTS_A与POTS_B划分为以“M”结尾的和以“J”结尾的list对象群（备注：M为主，J为辅）
+      End_with_J<-list(#POTS_A中，以“J”结尾的对象列表
+        POTS_A[[1]], POTS_A[[2]], POTS_A[[3]], POTS_A[[4]], POTS_A[[5]], POTS_A[[6]], POTS_A[[9]], POTS_A[[10]], POTS_A[[11]], POTS_A[[15]], POTS_A[[16]],
+        #POTS_B中，以“J”结尾的对象列表
+        POTS_B[[1]], POTS_B[[13]])#共13个list对象
+      End_with_J<-fun_wash_integer0(End_with_J)
+      names(End_with_J)<-c(names(POTS_A)[c(1, 2, 3, 4, 5, 6, 9, 10, 11, 15, 16)], names(POTS_B)[c(1, 13)])
+      End_with_M<-list(#POTS_A中，以“M”结尾的对象列表
+        POTS_A[[7]], POTS_A[[8]], POTS_A[[12]], POTS_A[[13]], POTS_A[[14]], 
+        #POTS_B中，以“M”结尾的对象列表
+        POTS_B[[2]], POTS_B[[3]], POTS_B[[4]], POTS_B[[5]], POTS_B[[6]], POTS_B[[7]], POTS_B[[8]], POTS_B[[9]], POTS_B[[10]], POTS_B[[11]], POTS_B[[12]])#共16个list对象
+      End_with_M<-fun_wash_integer0(End_with_M)
+      names(End_with_M)<-c(names(POTS_A)[c(7, 8, 12, 13, 14)], names(POTS_B)[c(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)])
+      #寻找End_with_J中的非零元素，并将其
+      #（1）在J_Res中的行编号、
+      #（2）对应助动词的基本形（对象Pots_C/L_d_M/J的名称）、
+      #（3）对应助动词的活用形（对象Pots_C/L_d_M/J中非零元素的坐标）
+      #作为4个元素中的后3个构成1个data.frame对象
+      if(1){
+        #----
+        #准备4列：第1列为浅层品词标签（“助动词”）、
+        #         第2列为位置，即（J_Res中的）行编号、
+        #         第3列为助动词基本形、
+        #         第4列为助动词活用形的种类。
+        #----
+        column_1_J<-NULL#浅层品词标签，即“助動詞”
+        column_2_J<-NULL#（J_Res中的）行编号
+        column_3_J<-NULL#助动词基本形
+        column_4_J<-NULL#助动词活用形种类
+        #----
+        #层级如下：
+        #End_with_J
+        #　-> POTS_A/B[[i]]              e.g., End_with_J[[i]]=「です」
+        #　　-> POTS_A/B[[i]][[j]]       e.g., 「です」[[j]]=「でし」
+        #　　　-> POTS_A/B[[i]][[j]][k]  e.g., 「でし」[k]=n（在J_Res中的行编号，数量为1）
+        #----
+        for(i in 1:13){ #对End_with_J就行遴选
+          current_len<-length(End_with_J[[i]])#当前list对象（助动词J_i）拥有的活用形种类数
+          for(j in 1:current_len){
+            if(sum(End_with_J[[i]][[j]])!=0){#对当前助动词的每一种活用形的list对象，检查其中是否含非零元素。
+              temp_len<-length(End_with_J[[i]][[j]])
+              column_1_J<-c(column_1_J, rep("助動詞", temp_len))#为第1列新添1个“助動詞”标签
+              column_2_J<-c(column_2_J, End_with_J[[i]][[j]])#存储行编号
+              column_3_J<-c(column_3_J, rep(names(End_with_J)[i], temp_len))#存储助动词基本形
+              column_4_J<-c(column_4_J, rep(names(End_with_J[[i]])[j], temp_len))#存储助动词活用形种类
+            }
+          }
+        }
+        #将上述4列汇总成1个df对象，用来存储中期结果（即J_Res中获匹配助动词的相关信息）
+        HIT_J<-data.frame(表层品词标签=column_1_J,
+                                行编号=column_2_J,
+                                基本形=column_3_J,
+                            活用形种类=column_4_J
+        )
+      }
+      #寻找End_with_M中的非零元素，并将其
+      #（1）在M_Res中的行编号、
+      #（2）对应助动词的基本形（对象Pots_C/L_d_M/J的名称）、
+      #（3）对应助动词的活用形（对象Pots_C/L_d_M/J中非零元素的坐标）
+      #作为4个元素中的后3个构成1个data.frame对象
+      if(1){
+        #----
+        #准备4列：第1列为浅层品词标签（“助动词”）、
+        #         第2列为位置，即（J_Res中的）行编号、
+        #         第3列为助动词基本形、
+        #         第4列为助动词活用形的种类。
+        column_1_M<-NULL#浅层品词标签，即“助動詞”
+        column_2_M<-NULL#行编号
+        column_3_M<-NULL#助动词基本形
+        column_4_M<-NULL#助动词活用形种类
+        #----
+        for(i in 1:16){
+          current_len<-length(End_with_M[[i]])
+          for(j in 1:current_len){
+            if(sum(End_with_M[[i]][[j]])!=0){
+              temp_len<-length(End_with_M[[i]][[j]])
+              column_1_M<-c(column_1_M, rep("助動詞", temp_len))
+              column_2_M<-c(column_2_M, End_with_M[[i]][[j]])
+              column_3_M<-c(column_3_M, rep(names(End_with_M)[i], temp_len))
+              column_4_M<-c(column_4_M, rep(names(End_with_M[[i]])[j], temp_len))
+            }
+          }
+        }
+        #将上述4列汇总成1个df对象，用来存储中期结果（即M_Res中获匹配助动词的相关信息）
+        HIT_M<-data.frame(表层品词标签=column_1_M,
+                                行编号=column_2_M,
+                                基本形=column_3_M,
+                            活用形种类=column_4_M
+        )
+      }
+      nrow_J<-nrow(HIT_J)#J_Res中匹配到的词素数
+      nrow_M<-nrow(HIT_M)#M_Res中匹配到的词素数
+      if(nrow_J!=0){
+        J_wait2project_sn<-HIT_J[, 2]#J_Res中尚待映射的助动词词素的行编号（注：sn为series numbers的缩写）
+        #----
+        #此环节的核心概念为“映射”：对于J_Res中每个被判定为“助动词”的词素（假设其为j_i），在M_Res中遍寻其在原始字符串中的表现形式，笔者称其为“映射”
+        #如果M_Res中存在和j_i完全相同的词素m_k，将其在M_Res中的行编号k记入最终输出对象res2compact的第1元素。
+        #然后，按照事先决定的3段粒度填充
+        #----
+        for(i in 1:nrow_J){#对HIT_J中的每一个词素
+          #i<-1
+          origin<-J_Res[J_wait2project_sn[i], 1]#映射起点（J_Res中的形态素）
+          origin_before<-ifelse(J_wait2project_sn[i]!=1, J_Res[J_wait2project_sn[i]-1, 1], "")
+          origin_after<-J_Res[J_wait2project_sn[i]+1, 1]
+          perfectly_hit<-which(M_Res[, 1]==origin)#映射起点正好与M_Res中的某一词素完全一致
+          if(length(perfectly_hit)!=0){#若存在“完美匹配”
+            if(length(perfectly_hit)==1){#如果M_Res只存在1个与映射起点J_i完全一致的词素（映射终点）的话，直接记下其行编号，和映射起点词素的3阶段粒度信息。
+              res2compact[[1]]<-c(res2compact[[1]], perfectly_hit)#把映射终点词素的行编号追加到res2compact的第1要素中。
+              res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+            }else{
+              #如果M_Res存在2个以上与映射起点J_i完全一致的词素（映射终点）的话，对比映射起点前后的1个词素和各映射终点前后的1个词素（若存在），定位正确的映射终点词素。
+              #具体方式为检测二者前后的1个词素（若存在）是否存在涵盖关系（例：存在字符串“ABCDE”，对此，J_Res的首列为“A/B/C/D/E”，M_Res的首列为“AB/C/D/E”。
+              #若映射起点为“C”，在检测到M_Res中确实存在与其完全一致的划分之后，仍需检测J_Res与M_Res中映射起点的前1个与后1个词素间是否存在包含关系。）
+              #创建1个2*2的矩阵来存储布尔值，用来反应映射起点和终点前后是否存在词素。
+              boolean_matrix<-matrix(F, 2, 2)#新建2行2列矩阵用以存储布尔值，初始均为FALSE
+              #                Before After
+              #        映射起点  F      F
+              #（当前）映射终点  F      F
+              colnames(boolean_matrix)<-c("Before", "After")
+              rownames(boolean_matrix)<-c("映射起点", "（当前）映射终点")
+              #找出映射起点的前1个和后1个词素（若存在的话）
+              if(1){
+                if(J_wait2project_sn[i]>1&J_wait2project_sn[i]<jn){#映射起点位于中间（即非首尾词素）的情况
+                  boolean_matrix[1, ]<-T#“映射起点”前后均存在至少1个词素
+                  jbefore<-J_Res[J_wait2project_sn[i]-1, 1]#映射起点的前1个词素
+                  jafter<-J_Res[J_wait2project_sn[i]+1, 1]#映射起点的后1个词素
+                }else{
+                  if(J_wait2project_sn[i]==1){#映射起点为首个词素的情况
+                    boolean_matrix[1, 2]<-T#[1, 2]<-T
+                    jafter<-J_Res[J_wait2project_sn[i]+1, 1]#映射起点的后1个词素
+                  }else{#映射起点为末尾词素的情况]
+                    boolean_matrix[1, 1]<-T
+                    jbefore<-J_Res[J_wait2project_sn[i]-1, 1]#映射起点的前1个词素
+                  }
+                }
+              }
+              num_HitInM<-length(perfectly_hit)#M_Resにおいてパーフェクト・ヒットした回数
+              for(j in 1:num_HitInM){
+                #找出映射终点的前1个和后1个词素（若存在的话）
+                if(1){
+                  if(perfectly_hit[j]>1&perfectly_hit[j]<mn){#（当前）映射终点位于中间（即非首尾词素）的情况
+                    boolean_matrix[2,]<-T
+                    mbefore<-M_Res[perfectly_hit[j]-1, 1]#（当前）映射终点的前1个词素
+                    mafter<-M_Res[perfectly_hit[j]+1, 1]#（当前）映射终点的后1个词素
+                  }else{
+                    if(perfectly_hit[j]==1){#（当前）映射终点为首个词素的情况
+                      boolean_matrix[2, 2]<-T
+                      mafter<-M_Res[perfectly_hit[j]+1, 1]#映射终点的后1个词素
+                    }else{#（当前）映射终点为末尾词素的情况
+                      boolean_matrix[2, 1]<-T
+                      mbefore<-M_Res[perfectly_hit[j]-1, 1]#映射终点的前1个词素
+                    }
+                  }
+                }
+                #根据boolean_matrix的第2行，决定比较对象是映射起点/终点的前方还是后方的1个词素
+                if(boolean_matrix[1, 1]&boolean_matrix[2, 1]){#如果映射起点和（当前）映射终点左侧均存在词素的话，执行以下代码
+                  if(str_detect(jbefore, mbefore)|str_detect(mbefore, jbefore)){#若各自左侧词素间存在包含关系
+                    res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j])#把（当前）映射终点的行编号追加到res2compact的第1要素中。
+                    res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    break
+                  }
+                }else{
+                  if(boolean_matrix[1, 2]&boolean_matrix[2, 2]){#如果映射起点和（当前）映射终点右侧均存在词素的话，执行以下代码
+                    if(str_detect(jafter, mafter)|str_detect(mafter, jafter)){#若各自右侧词素间存在包含关系
+                      res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j])#把（当前）映射终点的行编号追加到res2compact的第1要素中。
+                      res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                      break
+                    }
+                  }else{
+                    break# |T,F| 或 |F, T| 的情况，尽管不可能出现，补上一笔吧。
+                    # |F,T|    |T, F|
+                  }
+                }
+              }
+            }
+          }else{#若与映射起点完美匹配的词素在M_Res中不存在的话
+            #在M_Res的词素划分结果中找不到和J_Res中被判定为“助动词”的词素完全一致的词素（预计这种情况占大多数）。需要分6种情况讨论。
+            # 即： M      J
+            # (1)  ABCb   ABC # 与J相比，M后面多了一截
+            # (2)  aABC   ABC # 与J相比，M前面多了一截
+            # (3)  aABCb  ABC # 与J相比，M前后都多了一截
+            # (4)  AB/BC  ABC # M与J不完全一致，且包含于J之中
+            # (5)  aAB    ABC # M不包含J，且与J相比，前面多一截
+            # (6)  BCb    ABC # M不包含J，且与J相比，后面多一截
+            # 对于(1)~(4)，进行如下的正规表现，将M_Res中匹配到的位置i直接视作映射起点助动词，并进行（1）输出位置（即行编号）i、及3阶段粒度信息。
+            
+            pattern_1<-paste0("^", origin, ".+$")
+            pattern_2<-paste0("^.+", origin, "$")
+            pattern_3<-paste0("^.+", origin, ".+$")
+            res_pattern_1<-str_detect(pattern=pattern_1, M_Res[, 1])
+            res_pattern_2<-str_detect(pattern=pattern_2, M_Res[, 1])
+            res_pattern_3<-str_detect(pattern=pattern_3, M_Res[, 1])
+            
+            if(sum(res_pattern_1)==1){
+              res2compact[[1]]<-c(res2compact[[1]], which(res_pattern_1))
+            }if(sum(res_pattern_1)>1){
+              bingo<-res_pattern_1[which(str_sub(M_Res[which(res_pattern_1)-1, 1], -1)==str_sub(origin_before, -1))]
+              res2compact[[1]]<-c(res2compact[[1]], bingo)
+            }
+            
+            
+            
+            
+            if(1){
+              pattern_1to3<-paste0("^.*", origin, ".*$")#拼接出正规表现
+              matching_res_1to3<-str_detect(M_Res[, 1], pattern_1to3)#检测是否符合(1)~(3)这3种情况。
+              matching_res_4<-str_detect(origin, M_Res[, 1])#检测是否符合(4)这种情况。
+              if(sum(matching_res_1to3)==1){
+                res2compact[[1]]<-c(res2compact[[1]], which(matching_res_1to3))
+                res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                break
+              }else{
+                if(sum(matching_res_4)>=1){
+                  if(sum(matching_res_4)==1){
+                    res2compact[[1]]<-c(res2compact[[1]], which(matching_res_4))
+                    res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    break  
+                  }else{
+                    res2compact[[1]]<-c(res2compact[[1]], which(matching_res_4)[2])
+                    res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    break  
+                  }
+                }else{
+                  vec_overlap<-vector(F, mn)#生成要素皆为FALSE的向量，长度为M_Res的行数
+                  for(z in 1:mn){#比较映射起点和M_Res[,1]的每一个要素，检测二者是否满足overlap条件。若符合，将vec_overlap中对应要素改写为TRUE。
+                    vec_overlap[z]<-fun_overlap(M_Res[z, 1], origin)#*函数fun_overlap仍需检查与校对
+                  }
+                  res2compact[[1]]<-c(res2compact[[1]], which(vec_overlap)[1])
+                  res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                }
+              }
+            }
+          }
+        }
+      }
+      res2compact[[1]]<-c(res2compact[[1]], HIT_M$"行编号")
+      if(nrow_M!=0){
+        transformed_HIT_M<-data.frame(浅层标签="助動詞",
+                                      中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
+                                      深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
+        res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
+      }
+      return(res2compact)
+      #至此，该函数（fun_Matching_Auxiliary_Verb_compact）的最终输出已编辑完成。
+      #具体形式为list对象，含2个元素。
+      #元素1向量对象，其内容为M_Res中被判定为“助动词”的词素的行编号；
+      #元素2为data.frame对象，内容被判定为“助动词”的词素的，浅、中、深3层标签。
+      #余下的所以代码可统统删除。
+    }
+    #Colloquial_Style<-c(C_I_J, C_II_J, C_III_J, C_IV_J, C_V_J, C_VI_J, C_VII_M_Tai, C_VII_M_TaGaRu, C_VIII_J, C_IX_J, C_X_J, C_XI_M, C_XII_M, C_I_M);names(Colloquial_Style)<-Labe
+    #ls_Concrete_Transformations[[1]]
+    if(0){
+      Colloquial_Style<-c(C_I_J, C_II_J, C_III_J, C_IV_J, C_V_J, C_VI_J, C_VII_M_Tai, C_VII_M_TaGaRu, C_VIII_J, C_IX_J, C_X_J, C_XI_M, C_XII_M, C_XIII_M, C_XIV_J, C_XV_J);names(Colloquial_Style)<-Labels_Concrete_Transformations[[1]]
+      Literary_Style<-c(L_1_J, L_2_M, L_3_M, L_4_M, L_5_M, L_6_M, L_7_M, L_8_M, L_9_J, L_12_M, L_13_M, L_14_M, L_15_J);names(Literary_Style)<-Labels_Concrete_Transformations[[2]]
+      Fusion_CL<-c(Colloquial_Style, Literary_Style)
+      #3/20更新：设计了第三套分母：对某一文本中某一助动词的某一活用形（设其为A_i），以其出现次数（n_{A_i}）除以该活用形出现次数（n_A）
+      #自制函数：输入一条向量，返回一条相同长度的向量，其每个元素均为输入向量中所有元素的和
+      fun_splinter<-function(x){
+        res<-rep(sum(x), length(x));return(res)
+      }
+      #自制函数：输入一条向量，将其中为NaN的元素转换为0
+      fun_convert_NaN_to_ZERO<-function(x){
+        x[which(is.nan(x))]<-0
+        return(x)
+      }
+      #----
+      Third_Denominators_1<-c(fun_splinter(C_I_J),
+                              fun_splinter(C_II_J),
+                              fun_splinter(C_III_J),
+                              fun_splinter(C_IV_J),
+                              fun_splinter(C_V_J),
+                              fun_splinter(C_VI_J),
+                              fun_splinter(C_VII_M_Tai),
+                              fun_splinter(C_VII_M_TaGaRu),
+                              fun_splinter(C_VIII_J),
+                              fun_splinter(C_IX_J),
+                              fun_splinter(C_X_J),
+                              fun_splinter(C_XI_M),
+                              fun_splinter(C_XII_M),
+                              fun_splinter(C_XIII_M),
+                              fun_splinter(C_XIV_J),
+                              fun_splinter(C_XV_J))
+      Third_Denominators_2<-c(fun_splinter(L_1_J),
+                              fun_splinter(L_2_M),
+                              fun_splinter(L_3_M),
+                              fun_splinter(L_4_M),
+                              fun_splinter(L_5_M),
+                              fun_splinter(L_6_M),
+                              fun_splinter(L_7_M),
+                              fun_splinter(L_8_M),
+                              fun_splinter(L_9_J),
+                              fun_splinter(L_12_M),
+                              fun_splinter(L_13_M),
+                              fun_splinter(L_14_M),
+                              fun_splinter(L_15_J))
+      #----
+      Third_Denominators<-c(Third_Denominators_1, Third_Denominators_2)
+      Num_auxiliary_verbs<-sum(Fusion_CL)#输入文本中的助动词的总数（作为之后求频率时分母的一个候补项）
+      #同一助动词的所有活用的出现次数总和
+      Colloquial_Style_Total<-c(sum(C_I_J), sum(C_II_J), sum(C_III_J), sum(C_IV_J), sum(C_V_J), sum(C_VI_J), sum(C_VII_M_Tai), sum(C_VII_M_TaGaRu), sum(C_VIII_J), sum(C_IX_J), sum(C_X_J), sum(C_XI_M), sum(C_XII_M), sum(C_XIII_M), sum(C_XIV_J), sum(C_XV_J));names(Colloquial_Style_Total)<-Colloquial_Style_Basic_Forms
+      Literary_Style_Total<-!c(sum(L_1_J), sum(L_2_M), sum(L_3_M), sum(L_4_M), sum(L_5_M), sum(L_6_M), sum(L_7_M), sum(L_8_M), sum(L_9_J), sum(L_12_M), sum(L_13_M), sum(L_14_M), sum(L_15_J));names(Literary_Style_Total)<-Literary_Style_Basic_Forms
+      Fusion_CL_Total<-c(Colloquial_Style_Total, Literary_Style_Total)
+      #list(Colloquial_Style, Literary_Style, Fusion_CL)
+      ##2021年2月22日（月）新添功能，将执行上述代码所得的3条频数向量转换为频度向量输出（分母为输入字符串所含形态素个数，按照Juman++解析结果）
+      A<-list(Colloquial_Style, Literary_Style, Fusion_CL)#助动词小类（助动词各活用形的具体表现）的出现次数（备注：大类为各助动词原型的出现次数）
+      Num_Morphemes<-mean(jn, mn)#2021/3/18更新：将总词素数从原先仅参考Juman++修改为参考Juman++和cabocha的算数平均。
+      B<-list(Colloquial_Style/Num_Morphemes, Literary_Style/Num_Morphemes, Fusion_CL/Num_Morphemes)#A中各项除以输入文本所含词素的总数
+      C<-list(Colloquial_Style/Num_auxiliary_verbs, Literary_Style/Num_auxiliary_verbs, Fusion_CL/Num_auxiliary_verbs)#A中各项除以输入文本所含助动词词素的总数
+      D<-list(fun_convert_NaN_to_ZERO(Colloquial_Style/Third_Denominators_1), fun_convert_NaN_to_ZERO(Literary_Style/Third_Denominators_2), fun_convert_NaN_to_ZERO(Fusion_CL/Third_Denominators))#3/20更新
+      E<-list(Colloquial_Style_Total, Literary_Style_Total, Fusion_CL_Total, Fusion_CL_Total/Num_Morphemes, Fusion_CL_Total/Num_auxiliary_verbs)#助动词大类的各项分布数据：1.大类（口语体）出现次数，2.大类（文语体）出现次数，3.前2者的并集，4.前者除以输入文本所含词素的总数，5.3.除以输入文本所含助动词词素的总数
+      list(Frequencies=A, Relative_Frequencies=B, Denominator_shifted_to_Aux=C, Third_Denominator=D, Total_Frequencies_Relative_Frequencies=E)#对上述单对象（A, B, C, D）打包，输出。
+    }
+  }
+}
+temp_res<-fun_Matching_Auxiliary_Verb_compact_52(x=string, M_Res = M_Res, J=J_Res)
+string<-"京都府と京都市は六日、新型コロナウイルスに感染していた二人が死亡し、新たに十歳未満から九〇代の男女130人の感染が確認されたと発表した。"
+x<-string->input
+
+
+
+##----
+#連文節パターン
+new_bunsetsu_patterns<-function(text){
+  library(stringr)
+  #注釈：BS为文節（BunSetsu）的缩写。
+  BS_cab<-fun_cabocha(string)#使用cabocha与ipadic词典求文节
+  BS_KNP<-fun_KNP(string)#使用KNP与Juman++词典求文节
+  #自制函数
+  #----
+  material<-net_M_Res
+  temp_res<-fun_find_verbs_C_V_CVS_MeCab(material)
+  fun_Ngram<-function(x, n, straddle=FALSE){#自制函数求“连文节（連文節）”:对于输入向量，从第一个元素到最后一个元素，将相邻的n个元素联结为1个元素，并将其保存。
+    #参数x为向量（e.g., 此处x的各元素为文节）
+    #参数straddle可为T或F。F时：非末尾处含“。”或与其相当的标点符号的元素若存在，删除之。straddle的意思是“跨”，其值为T，则允许跨句子，其值为F，则禁止跨句子。
+    #x<-BS_cab; n<-3; straddle=FALSE
+    library(stringr)
+    xlen<-length(x)
+    nlen<-xlen-n+1
+    new_vec<-rep(0, nlen)
+    for(i in 1:nlen){
+      dx<-i:(i+n-1)
+      new_vec[i]<-fun_InVec_adhere(x[dx], "")
+    }
+    if(straddle==FALSE){
+      fy<-which(str_detect(new_vec, "^.*(?<![．。！？…])$")&str_detect(new_vec, "[．。！？…]"))
+      if(length(fy)!=0){
+        new_vec<-new_vec[-fy]
+      }
+      #删去[不以句号或准句号结尾的元素序列号&含句号或准句号的元素序列号]
+    }
+    return(new_vec)
+  }
+  fun_Ngram(x=BS_cab, n=2)
+  
+  
+  x<-temp_m
+  mode<-"M"
+  fun_BSPattern_reproduction<-function(x, mode="M"){
+    #既存の文節パターンＢ特徴量ベクトルを再現。
+    #对象x为MeCab或Juman++的词素解析结果（矩阵，前者10列，后者16列）
+    #参数mode用来指定对象x为MeCab还是Juman++的词素解析结果。
+    nr<-nrow(x)#先数对象x有几行
+    SupCo<-ifelse(mode=="M", 2, 4)#上位概念（Superordinate Concept）的缩写，即词素品词大分类所在列序号
+    SubCo<-ifelse(mode=="M", 3, 6)#下位概念（Subordinate Concept）的缩写，即词素品词小分类所在列序号
+    Surface_chain<-x[, 1]
+    SupCo_Chain<-x[, SupCo]
+    Sueoki<-which(str_detect(SupCo_Chain, "^(助詞|記号)$"))#変数名の通り，表層形態素のままで（据え置き）
+    SupCo_Chain[Sueoki]<-Surface_chain[Sueoki]
+    res<-fun_InVec_adhere(SupCo_Chain, sep="_")
+    return(res)
+  }
+  temp_res<-fun_BSPattern_reproduction(x=temp_m)
+  (temp_m<-Analytic_MeCab_429(input=string))
+  #fun_BSPattern_reproduction(x=temp_m)
+  fun_LBSPattern<-function(string){
+    #该自制函数用以生成新特征量「連文節パターン」向量。
+    #第1参数string为连续2个文节联结所得的字符串。
+    #第2参数x为对string进行词素解析的结果矩阵（4/29更新该行注释，将词素解析软件限定为MeCab）。
+    ##准备M_Res
+    if(1){
+      if(!str_detect(string, "^.+[、。]$")){#若string不以记号接尾，在其后方连1个“、”，确保可以正常运行Analytic_MeCab_429函数
+        temp_string<-str_c(string, "、")
+        M_Res<-Analytic_MeCab_429(string)
+        #因为在检测动词，形容词，助动词活用形时需要考察对象词素的后方3个词素，故Analytic_MeCab_429会在词素解析结果下方粘上3行空向量。
+        #由于先前在string后方连了一个“、”，所以得移除其对应行。
+        temp_len<-nrow(Res_M)
+        M_Res<-Res_M[-(temp_len-3), ]
+      }else{#对于以“、”或“。”结尾的string
+        M_Res<-Analytic_MeCab_429(string)
+      }
+      首列为空<-which(M_Res[, 1]=="")
+      if(length(首列为空)!=0){
+        net_M_Res<-M_Res[-首列为空, ]#M_Resの正味部分
+      }else{
+        net_M_Res<-M_Res
+      }
+    }
+    ##准备J_Res
+    if(1){
+      J_Res<-fun_jumanpp_R_51(string)
+      
+    }
+    if(0){
+      nr<-nrow(x)#先数对象x有几行
+      SupCo<-ifelse(mode=="M", 2, 4)#上位概念（Superordinate Concept）的缩写，即词素品词大分类所在列序号
+      SubCo<-ifelse(mode=="M", 3, 6)#下位概念（Subordinate Concept）的缩写，即词素品词小分类所在列序号
+      Basic<-ifelse(mode=="M", 8, 3)#基本型（Basic Form），即动词
+      Surface_Chain<-x[, 1]#形態素単位で分かち書きされた連文節文字列
+      SupCo_Chain<-x[, SupCo]#全构成词素的上位概念链
+      Sueoki<-which(SupCo_Chain, "助詞")#変数名の通り，表層形態素のままで（据え置き）。
+    }
+    #为函数fun_LBSPattern准备
+    nr_net_M_Res<-nrow(net_M_Res)
+    FINAL<-matrix("", nr_net_M_Res, 3)
+    colnames(FINAL)<-c("浅层标签", "中层标签", "深层标签")
+    #对于标点符号词素，将其词素形式直接填入三阶粒度矩阵
+    marks_sn<-which(M_Res[, 2]=="記号")
+    FINAL[marks_sn, ]<-M_Res[marks_sn, 1]
+    #对于助词词素，进行同样的处理
+    postpositions_sn<-which(M_Res[, 2]=="助詞")
+    FINAL[postpositions_sn, ]<-M_Res[postpositions_sn, 1]
+    #对于动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    if(any(net_M_Res[, 2]=="動詞")){
+      Res_V<-fun_find_verbs_C_V_CVS_MeCab(material=net_M_Res)#检索net适配MeCab词素解析结果
+      V_series_numbers<-Res_V$"匹配序列号"
+      V_3level_granularities<-Res_V$"三阶粒度"
+      FINAL[V_series_numbers, ]<-as.matrix(V_3level_granularities)
+    }else{
+      V_series_numbers<-NULL
+    }
+    #对于形容词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    if(any(net_M_Res[, 2]=="形容詞")){
+      Res_A<-fun_Adjective_Conjugation_51(net_M_Res)
+      A_series_numbers<-Res_A$"トータルナンバー"
+      if(length(A_series_numbers)>=2){
+        A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[, 2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+      }else{
+        A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+      }
+      FINAL[A_series_numbers, ]<-as.matrix(A_3level_granularities)
+    }else{
+      A_series_numbers<-NULL
+    }
+    #对于助动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    Res_AV<-fun_Matching_Auxiliary_Verb_compact_52(string, J_Res=J_Res, M_Res=M_Res)
+    
+    AV_series_numbers<-Res_AV[[1]]
+    AV_3level_granularities<-Res_AV[[2]]
+    #将上述3类品词的3阶粒度信息填充入FINAL矩阵
+    FINAL[V_series_numbers, ]<-V_3level_granularities
+    FINAL[A_series_numbers, ]<-A_3level_granularities
+    FINAL[AV_series_numbers, ]<-AV_3level_granularities
+    processed<-c(marks_sn, postpositions_sn, V_series_numbers, A_series_numbers, AV_series_numbers)#上述5类品词对应的行编号
+    still<-setdiff(1:nr_net_Res_M, processed)#上述5类品词以外的行编号
+    FINAL[still, 2]<-net_Res_M[still, 2]
+    FINAL[still, 3]<-net_Res_M[still, 1]
+    return(FINAL)
+}
+  
+  string<-"楽しく選択肢を進んでいく。"
+  res<-fun_LBSPattern(string=string)
+  
+  LBS_cab<-fun_Ngram(BS_cab, 2)#连文节（cabocha，n为2）
+  LBS_KNP<-fun_Ngram(BS_KNP, 2)#连文节（KNP，n为2）
+  len_LBS_cab<-length(LBS_cab)
+  len_LBS_KNP<-length(LBS_KNP)
+  lists_LBS_cab<-list()
+  lists_LBS_KNP<-list()
+  for(i in LBS_cab){
+    lists_LBS_cab[[i]]<-fun_LBSPattern(LBS_cab[i])
+  }
+  for(i in LBS_KNP){
+    lists_LBS_KNP[[i]]<-fun_LBSPattern(LBS_cab[i])
+  }
+}
+
+  
+  
+  
+  
+    
+  ##----
+    #ただし、“”・（）・「」など引用系記号をあらかじめ削除して，他の記号はすべて“記号”で置き換える。
+    #その理由として、引用系記号を除く記号は、「間」の存在を示すものであり、「間」の長さや語気などは個人差があるとは考えにくいから）
+    #助詞と記号以外の品詞について、動詞・形容詞はそれぞれの活用形を、助動詞はその基本形と活用形のペアを、形容動詞はその活用形を、副詞は基本形
+    #在所给连文节字符串中提取动词位置
+    ##----
+    verbs_pos<-which(SupCo_Chain=="動詞")#连文节的词素解析结果中动词的绝对位置坐标。
+    verbs_num<-length(verbs_pos)#动词的个数，同时也是循环的长度。
+    #此处调用检测动词活用形的自制函数。之前那个动词活用形函数的缩略版，需要借鉴那个函数中的规则。之前那个函数是输入字符串找出其中所有的动词，输出基本形和活用形的汇总向量（出现次数），
+    #这里需要一个更精简的版本，主要执行如下功能：
+        #记录下个所给连文节字符串中动词的绝对位置坐标；开启循环，对每一个动词及其后方若干字符套用检测动词活用形时的规则。此处需要为动词部分准备两条虚拟向量，一条在对应位置上记录下基本形，另一条在对应位置上记录下活用形。
+        VerbBasic_vec<-Surface_Chain[verbs_pos]
+        VerbConju_vec<-vector("基本形", length=verbs_num)#先一律赋“基本形”
+    #假设已存在一自制函数fun_VC_compact满足第58行注释所提及的要求（输入词素解析结果矩阵，输出含三列的结果矩阵：第一列为该矩阵中动词词素所在行序号；第二列为各动词的基本形；第三列为各动词的活用形）
+  }
+  #----
+
+  #对每一个连文节进行词素解析。
+  if(1){
+    len_LBS_cab<-length(LBS_cab)#首先测量cabocha连文节的长度。
+      LBS_cab_mecab<-list()
+      LBS_cab_jumanpp<-list()
+    for(i in 1:len_LBS_cab){
+      LBS_cab_mecab[[i]]  <-fun_mecab(LBS_cab[i])#对cabocha解析所得的连文节使用mecab进行词素解析。
+      LBS_cab_jumanpp[[i]]<-fun_jumanpp(LBS_cab[i])#对cabocha解析所得的连文节使用Juman++进行词素解析。
+      cat(i, "\n")
+    }
+    len_LBS_KNP<-length(LBS_KNP)#其次测量KNP连文节的长度。
+      LBS_KNP_mecab<-list()
+      LBS_KNP_jumanpp<-list()
+    for(i in 1:len_LBS_KNP){
+      LBS_KNP_mecab[[i]]  <-fun_mecab(LBS_KNP[i])#对KNP解析所得的连文节使用mecab进行词素解析。
+      LBS_KNP_jumanpp[[i]]<-fun_jumanpp(LBS_KNP[i])#对KNP解析所得的连文节使用Juman++进行词素解析。
+      cat(i, "\n")
+    }
+  }
+}
+
+
+
+
+
+#「形容動詞」に関しては、少々アレンジが必要なようだ。
+which(X[,3]=="形容動詞語幹")
+temp<-unique(X[,2]);posType<-length(temp)#品詞種類の数
+
+
+fun_temp<-function(X, x, mode="VERB"){#X为一矩阵，是自制函数fun_Jumanpp或fun_MeCab的解析结果。
+                                      #x为一向量，其要素为某一类品词在X中的行的序列号。
+  if(0){
+    #convert quasi-commas and quasi-periods to commas and periods
+    quasi_commas<-which(str_detect(X[,1], "^(・|，|ーー|ー|,)$"))
+    quasi_periods<-which(str_detect(X[,1], "^(．|.|…|︙|……|…。|……。|？|！|!|?)$"))
+    X[quasi_commas, 1]<-"、"
+    X[quasi_periods,1]<-"。"
+    #remove quotation marks
+    quotation_marks<-which(str_detect(X[,1], "^(「|」|『|』|（|）|(|)|[|]|【|】|［|］|〈|〉|〔|〕|｛|｝|“|”|\"|‘|’|\')$"))
+    X<-X[-quotation_marks,]
+  }
+  #For VERB morpheme(動詞), fetch its BASIC FORM, CONJUGATION FORM, Consonant-Verb, Vowel-Verb, SaHen-Verb or KaHen-Verb.
+  #For ADJECTIVE morpheme(形容詞), fetch its SURFACE TAG Information, BASIC FORM and CONJUGATION FORM.
+  #For ADVERB morpheme(副詞), fetch its SURFACE TAG Information and BASIC FORM.
+  #For AUXILIARY VERB(助動詞), fetch its BASIC FORM and CONJUGATION FORM.
+  #For ADJECTIVE VERB(形容動詞), fetch its STEM and CONJUGATION FORM.
+  #For CONJUNCTION(接続詞), fetch its BASIC FORM.
+  #For INTERJECTION(感嘆詞), fetch its BASIC FORM.
+  num_morphemes<-nrow(X)#当前连文节字符串含词素数量
+  res_matrix<-matrix("", nrow=num_morphemes, ncol=4)#次级结果的4列矩阵，每一列对应一个粒度（granularity）
+  colnames(res_matrix)<-c("coarse-grained", "moderate", "fine-grained", "surface")#分别为：粗、中、细、表层
+  all<-1:num_morphemes
+  if(1){#生成各类品词词素的位置向量
+    punctuation_mark_pos<-which(X[, SupCo]=="記号")#定位标点符号
+    postposition_pos<-which(X[, SupCo]=="助詞")#定位助词
+    #定位动词（M、J有别）
+    if(mode=="MeCab"){verb_pos<-which(X[, SupCo]=="動詞")}else{verb_pos<-sort(union(which(str_detect(X[, SupCo], "^動詞")), which(X[,5]=="動詞性接尾辞")))}
+    adjective_pos<-which(X[, SupCo]=="形容詞")#定位形容词
+    adverb_pos<-which(X[, SupCo]=="副詞") #定位副词
+    temp_AuxVerb_pos<-which(X[, SupCo]=="助動詞")#助動詞にあたる形態素の番号（ただしMもJも単体で助動詞を捉え切れないためあくまでも「仮」）；（暂时）定位助动词
+    adjective_verb_pos<-which(X[, SupCo]=="形容動詞")#定位形容动词
+    conjunction_pos<-which(X[, SupCo]=="接続詞")#定位接续词
+    rentaishi_pos<-which(X[, SupCo]=="連体詞")#定位连体词
+    interjection_pos<-which(X[, SupCo]=="感動詞")#定位感叹词
+    temp<-sort(union(punctuation_mark_pos, postposition_pos, verb_pos, adjective_pos, adverb_pos, temp_AuxVerb_pos, conjunction_pos, rentaishi_pos, interjection_pos))#对上述10种品词（part of speech）的行编号求并集
+    others_pos<-setdiff(all, temp)#若存在不属于上述10种类别的品词的话，一律归为“其他”
+  }
+  #簡単なやつらからハメていく。
+  if(1){
+    #标点符号和助词，四列共通。
+    res_matrix[punctuation_mark_pos,]<-X[punctuation_mark_pos,1]
+    res_matrix[postposition_pos,]<-X[postposition_pos,1]
+    #動詞
+    
+    res_matrix[verb_pos,1]<-"動詞"
+    
+    #temp_res<-fun_temp(X=X, x=verb_pos, mode="verb")
+    if(mode=="MeCab"){
+      temp_res<-fun_find_verbs_C_V_CVS_MeCab(material=X)
+    }else{
+      temp_res<-fun_find_verbs_C_V_CVS(material=X)
+    }
+    temp_a<-apply(temp_res$活用形, 2, fun_0)
+    temp_b<-fun_1(X=temp_res$活用形, y=temp_a)
+    res_matrix[verb_pos,2]<-fun_glue("動詞", temp_b)
+    res_matrix[verb_pos,3]<-fun_glue(X[verb_pos, Basic], temp_b)
+    #ここにて「動詞」に関する3種類の粒度情報を装填済み
+    #形容詞
+    #res_matrix[adjective_pos,1]<-"形容詞"
+    temp_res<-fun_Adjective_Conjugation(X)
+    TotalNumbers<-temp_res$トータルナンバー
+    res_matrix[TotalNumbers,1]<-"形容詞"
+      temp_matrix<-cbind("形容詞", temp_res$活用マトリックス[,2])
+    res_matrix[TotalNumbers,2]<-fun_glue(x=temp_matrix, sep="_")
+      temp_matrix_1<cbind(temp_res$活用マトリックス[,2], X[TotalNumbers,8])
+    res_matrix[TotalNumbers,3]<-fun_glue(temp_matrix_1, sep="_")
+    
+    #可能还要处理一些行编号的冲突问题（开头对各品词种类分配行编号时，为了排出“其他”类品词，对于词素解析精度较低的形容词和助动词，粗糙得分配了行编号）
+    #temp_res<-fun_temp(X=X, x=res_matrix, mode="adj")
+    #先比较一下函数fun_Adjective_Conjugation()内部搜查到的形容词词素行编号和外部的行编号是否一致，如不一致，尊重函数fun_Adjective_Conjugation()内部的。
+    if(TotalNumbers!=adjective_pos){
+      #トータルナンバー比adjective_pos多出来的部分
+      extra_matched<-setdiff(TotalNumbers, adjective_pos)
+    }
+    res_matrix[adjective_pos,2]<-fun_glue("形容詞", temp_res$conjugated_form_types)
+    res_matrix[adjective_pos,3]<-fun_glue(temp_res$basic_forms, temp_res$conjugated_form_types)
+    #副詞
+    res_matrix[adverb_pos,1]<-"副詞"
+    res_matrix[adverb_pos,2:3]<-X[adverb_pos,1]
+    #助動詞
+    res_matrix[temp_AuxVerb_pos,1]<-"助動詞"
+    temp_res<-fun_temp(X=X, x=temp_AuxVerb_pos, mode="AuxVerb")#把当前连文节中助动词的行编号喂给解析函数fun_temp后所得到的结果（现在考虑是否将fun_temp的结果设为list对象，含2个元素，均为向量，元素1为基本形，元素2为活用形）
+    res_matrix[temp_AuxVerb_pos,2]<-fun_glue("助動詞", temp_res$conjugated_form_types)
+    res_matrix[temp_AuxVerb_pos,3]<-fun_glue(temp_res$basic_forms, temp_res$conjugated_form_types)
+    #形容動詞
+    res_matrix[adjective_verb_pos,1]<-"形容動詞"
+    temp_res<-fun_temp(X=X, x=adjective_verb_pos, mode="AdjVerb")
+    res_matrix[adjective_verb_pos,2]<-fun_glue("形容動詞", temp_res$conjugated_form_types)
+    res_matrix[adjective_verb_pos,3]<-fun_glue(temp_res$basic_forms, temp_res$conjugated_form_types)
+    #接続詞
+    res_matrix[conjunction_pos,1]<-"接続詞"
+    res_matrix[conjunction_pos,2:3]<-X[conjunction,1]
+    #連体詞
+    res_matrix[rentaishi_pos,1]<-"連体詞"
+    res_matrix[rentaishi_pos,2:3]<-X[rentaishi_pos,1]
+    #感嘆詞
+    res_matrix[interjection_pos,1]<-"感嘆詞"
+    res_matrix[interjection_pos,2:3]<-X[interjection_pos, 1]
+    #その他
+    res_matrix[others_pos,1:3]<-"その他"
+    #表層（連文節）
+    res_matrix[,4]<-X[,1]
+  }
+  
+}
+fun1_temp<-function(X, x, mode="verb"){
+  #参数mode有4个可选项：“verb”、“adj”、“AuxVerb”、“AdjVerb”
+  #分别为：“动词”、“形容词”、“助动词”、“形容动词”
+  #预置为“verb”
+  
+  #调用之前写的自制函数。
+  fun_find_verbs_C_V_CVS<-function(material, mode=3){# material 是运行自制函数 Analytic_Jumanpp_Improved 的结果。
+    #mode1：将分析对象限定为文本中的动词
+    #mode2：将分析对象限定为文本中的动词性接尾辞
+    #mode3：分析对象将囊括文本中的动词和动词性接尾辞
+    series_object<-switch(mode,
+                          "1"=which(str_detect(material[, 4], "^動詞")),
+                          "2"=which(material[,5]=="動詞性接尾辞"),
+                          "3"=union(which(str_detect(material[, 4], "^動詞")), which(material[,5]=="動詞性接尾辞"))
+    )
+    objects_res<-material[series_object,]
+    num_objects<-length(series_object)
+    #生成用来存储结果的矩阵。
+    if(1){
+      Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)
+      colnames(Conjugates_Matrix)<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
+      rownames(Conjugates_Matrix)<-objects_res[,3]
+      Voices_Matrix<-matrix(0, nrow=num_objects, ncol=7)
+      colnames(Voices_Matrix)<-c("能動態", "可能態", "意志態", "使役態", "受動態・自発態・尊敬態", "使役受動態", "交互態")
+      rownames(Voices_Matrix)<-objects_res[,3]
+      CVS_Matrix<-matrix(0, nrow=num_objects, ncol=4)
+      colnames(CVS_Matrix)<-c("子音動詞", "母音動詞", "サ行変格活用動詞", "カ行変格活用動詞")
+      rownames(CVS_Matrix)<-objects_res[,3]
+      #vi_vt<-matrix(0, nrow=num_objects, ncol=3)
+      #colnames(vi_vt)<-c("自動詞", "他動詞", "自他動詞")
+    }
+    #填充<活用形>矩阵
+    if(1){
+      objects_res[objects_res=="文語未然形"]<-"文語"
+      Conjugates_Matrix[str_detect(objects_res[,7], "未然形"), 1]<-1
+      Conjugates_Matrix[str_detect(objects_res[,7], "文語"), 2]<-1
+      Conjugates_Matrix[str_detect(objects_res[,7], "タ|基本連用形"), 3]<-1
+      if(1){
+        basic<-which(str_detect(objects_res[,7], "基本形"))
+        series_attributive<-basic[str_detect(material[basic+1, 4], "名詞")]
+        series_end_form<-basic[-series_attributive]
+      }
+      Conjugates_Matrix[series_attributive, 4]<-1
+      Conjugates_Matrix[series_end_form, 5]<-1
+      Conjugates_Matrix[str_detect(objects_res[,7], "基本条件形"), 6]<-1
+      Conjugates_Matrix[str_detect(objects_res[,7], "命令形"), 7]<-1
+    }
+    #填充<态>矩阵
+    if(1){
+      Voices_Matrix[str_detect(objects_res[,9],"可能動詞"),2]<-1#可能態
+      Voices_Matrix[str_detect(objects_res[,7],"意志形"),3]<-1#意志形
+      #特殊情况：言わんとする
+      if(1){
+        a<-which(objects_res[,1]=="いわ")
+        b<-series_object[a]
+        c<-a[which(material[b+1,1]=="ん"&material[b+2,1]=="と"&material[b+3,3]=="する")]
+        Voices_Matrix[c,3]<-1
+      }
+      Voices_Matrix[which(str_detect(objects_res[,7],"未然形"))[which(str_detect(material[series_object[str_detect(objects_res[,7],"未然形")]+1,3],"せる|しめる|しむ"))],4]<-1#使役態
+      Voices_Matrix[which(str_detect(objects_res[,7],"未然形"))[which(str_detect(material[series_object[str_detect(objects_res[,7],"未然形")]+1,3],"れる"))],5]<-1#受動態・自発態・尊敬態
+      Voices_Matrix[which(str_detect(objects_res[,7],"未然形"))[which(str_detect(material[series_object[str_detect(objects_res[,7],"未然形")]+2,3],"れる"))],6]<-1#使役受動態
+      Voices_Matrix[which(str_detect(objects_res[,7],"基本連用形"))[which(str_detect(material[series_object[str_detect(objects_res[,10],"基本連用形")]+1,3],"合う"))],7]<-1#交互態
+      Voices_Matrix[rowSums(Voices_Matrix)==0,1]<-1#能動態
+      Voices_Matrix[rowSums(Voices_Matrix[,c(2,3)])>1,2]<-0#可能态和意志形不能共存，有意志形就不可能是可能态
+    }
+    #填充<子母サ>矩阵
+    if(1){
+      CVS_Matrix[str_detect(objects_res[,6],"子"),1]<-1
+      CVS_Matrix[str_detect(objects_res[,6],"母"),2]<-1
+      CVS_Matrix[str_detect(objects_res[,6],"サ変"),3]<-1
+      CVS_Matrix[str_detect(objects_res[,6],"カ変"),4]<-1
+    }
+    list(番号=series_object, 活用形=Conjugates_Matrix, 態=Voices_Matrix, フォルム=CVS_Matrix)
+  }
+  if(mode=="verb"){
+    
+  }
+  if(mode=="adj"){
+    
+  }
+  if(mode=="AuxVerb"){
+    
+  }
+  if(mode=="AdjVerb"){
+    
+  }
+}
