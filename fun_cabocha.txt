@@ -1,9 +1,10 @@
-fun_cabocha<-function(input){
-    library(stringr)
-    input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
-    command<-paste("echo", input, "| cabocha")
-    completed<-command%>%system(intern=TRUE)%>%str_replace_all(" +", "")%>%
-      str_replace_all("-+.+$", "")
-    return(completed[-length(completed)])
-    #num_phrase_patterns<-length(completed)
-  }
+fun_cabocha<-function(input)
+  {
+  library(stringr)
+  input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+  command<-paste("echo", input, "| cabocha")
+  completed<-command%>%system(intern=TRUE)%>%str_replace_all(" +", "")%>%
+    str_replace_all("-+.+$", "")
+  return(completed[-length(completed)])
+  #num_phrase_patterns<-length(completed)
+}
