@@ -1,5 +1,5 @@
-Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
-  if(0){input<-string; merge=TRUE; mode=1}
+Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1)
+  {
   library(stringr)
   library(dplyr)
   #自制函数群
@@ -168,6 +168,18 @@ Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
     final_res<-fun_merge(x=completed)
   }else{
     final_res<-completed
+  }
+  if(1){
+    #convert quasi-commas and quasi-periods to commas and periods
+    quasi_commas<-which(str_detect(final_res[,1], "^(・|，|ーー|ー|,)$"))
+    quasi_periods<-which(str_detect(final_res[,1], "^(．|\\.|…|……|…。|……。|？|！|!)$"))
+    final_res[quasi_commas, 1]<-"、"
+    final_res[quasi_periods,1]<-"。"
+    #remove quotation marks
+    quotation_marks<-which(str_detect(final_res[,1], "^(「|」|『|』|（|）|(|)|[|]|【|】|［|］|〈|〉|〔|〕|｛|｝|“|”|\"|‘|’|\')$"))
+    if(length(quotation_marks)!=0){
+      final_res<-final_res[-quotation_marks, ]
+    }
   }
   return(final_res)
 }
