@@ -1,4 +1,5 @@
-fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI"){
+fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI")
+  {
   if(0){input<-string;M=TRUE;mode="XVI"}
   #输入为被压缩为一个元素的字符串，输出用Juman++进行形态素解析的结果（矩阵），default为进行连续名词合并。
   #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
@@ -13,14 +14,11 @@ fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI"){
     mode<-ifelse(mode=="XVI", 0, 1)
     for(i in 1:len_sentences){
       Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=mode)
-      dim(Warehouse[[i]])
       cat(i, "\n")
     }
-    #Final_Result<-rbind(Warehouse[[1]], Analyzed_Results_for_Punctuation_Marks[1,])
     Final_Result<-Warehouse[[1]]
     if(length(Warehouse)>=2){
       for(i in 2:len_sentences){
-        #Final_Result<-rbind(Final_Result, Warehouse[[i]], Analyzed_Results_for_Punctuation_Marks[i,])
         Final_Result<-rbind(Final_Result, Warehouse[[i]])
       }
     }
@@ -32,14 +30,20 @@ fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI"){
     }  
   }
   Final_Result[,1:16]<-str_replace_all(Final_Result[,1:16], pattern="\"", replacement="")
-  #old_FR<-Final_Result
   Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J")
   Final_Result<-fun_fusion_PrefixOrSuffix_and_Noun(Final_Result, mode="J", target="Suf")
   #将“形容動詞”标记出来
   形容動詞位置<-which(Final_Result[, 4]=="形容詞"&Final_Result[, 8]=="ナ形容詞")
   Final_Result[形容動詞位置, 4]<-"形容動詞"
+  合併待ち<-形容動詞位置[which(Final_Result[形容動詞位置, 10]=="語幹" & Final_Result[形容動詞位置+1, 4]=="名詞")]
+  if(length(合併待ち)!=0){
+    Final_Result[合併待ち, 4]<-"名詞"
+    Final_Result[合併待ち, 1]<-paste0(Final_Result[合併待ち, 1], Final_Result[合併待ち+1, 1])
+    Final_Result<-Final_Result[-(合併待ち+1), ]    
+  }
   if(mode=="XII"){
     Final_Result<-Final_Result[,-c(5, 7, 9, 11)]
   }
+  Final_Result<-fun_merge(Final_Result)
   return(Final_Result)
 }
