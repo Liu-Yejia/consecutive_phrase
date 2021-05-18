@@ -1,20 +1,20 @@
 Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
-  library(stringr);library(dplyr)
+  if(0){input<-string; merge=TRUE; mode=1}
+  library(stringr)
+  library(dplyr)
   #自制函数群
   #----
   #对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
   #若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
-  fun_glue<-function(x,direction=1,sep="//"){
-    if(is.null(dim(x))){
+  fun_glue<-function(x,direction=1,sep="_"){
+    if(is.null(dim(x))){#检测x是否为向量对象，若是，将其所有元素用sep联结后输出。
       len<-length(x)
       total<-x[1]
       for(i in 2:len){
         total<-paste(total,x[i],sep=sep)
       }
-    }else{
-      dimen<-switch(direction,
-                    "1"=ncol(x),
-                    "2"=nrow(x))
+    }else{#若否，根据参数“direction”指定合并方向：若direction为1，->|<-；若2，则垂直方向压缩。
+      dimen<-switch(direction, "1"=ncol(x), "2"=nrow(x))
       if(direction==1){
         total<-x[,1]
         for(i in 2:dimen){
@@ -29,7 +29,7 @@ Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
     }
     return(total)
   }
-  #自定义函数（fun_Continuum_Searcher），用来定位所给的其中元素为序列号的向量中，连续的元素块。
+  #自定义函数（fun_Continuum_Searcher），用来定位所给向量对象（其中元素为序列号）中连续的元素块。
   #输出为矩阵，其列数为2，第1列为各个连续的元素块的起始序列号，第2列为终止序列号；行数为连续元素块的个数。
   fun_Continuum_Searcher<-function(x){
     dif<-x[-1]-x[-length(x)]
@@ -97,7 +97,7 @@ Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
       return(x)
     }
   }
-  ##----
+  #----
   input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
   command<-paste("echo", input, "| jumanpp")
   completed<-system(command, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_split_fixed(pattern=" ", n=16)
