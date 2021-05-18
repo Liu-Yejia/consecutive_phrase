@@ -1,4 +1,5 @@
-fun_KNP<-function(input){
+fun_KNP<-function(input)
+  {
   library(stringr)
   fun_glue<-function(x,direction=1,sep="//"){
     if(is.null(dim(x))){
@@ -41,8 +42,12 @@ fun_KNP<-function(input){
       for(j in 2:(num_morphemes-1)){
         result[j-1]<-temporary_res[j]%>%str_replace(" +", "")%>%str_replace_all("[┐|┤|\\│]", "")%>%str_replace("(─+　+)", "")%>%str_replace_all("(　? ?)", "")%>%str_replace_all("<", " ")%>%str_replace_all(">.?", "")
       }
+      result
       result<-str_split_fixed(result, pattern=" ", n=2)
+      result
+      result[which(str_detect(result[, 2], "^[A-Z ]*体言.+$")), 2]<-"体言"
       #将连续n (n>=2) 个被判定为“体言”的文节合并为1个文节，以应对像“新型コロナウイルス”这样的复合名词
+      result[which(result[, 2]==""), 2]<-"体言"
       if(any(result[, 2]=="体言")){
         substantive_positions<-which(result[, 2]=="体言"&str_detect(result[, 1], "^(?!.*から$).*$"))
         len_sub<-length(substantive_positions)
