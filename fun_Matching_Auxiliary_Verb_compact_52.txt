@@ -1,4 +1,5 @@
-fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
+fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res)
+{#x为文本
   library(stringr)
   #自制函数
   if(1){
@@ -68,8 +69,11 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
       }
       return(decision)
     }
+  }
+  if(0){
     #Analytic_Jumanpp的改良版，同原始版本的区别在于将一词多义现象反映在了输出中
     Analytic_Jumanpp_Improved<-function(input, merge=TRUE, mode=1){
+      input<-string; merge=TRUE; mode=1
       library(stringr)
       library(dplyr)
       #自制函数群
@@ -157,7 +161,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
               first_3[j]<-str_c(x[elements,j], collapse="")
             }
             mergerd<-c(first_3, x[elements_end,-c(1:3)])
-            mergerd[5]<-paste0("複合", pos)
+            mergerd[6]<-paste0("複合", pos)
             x[elements_end,]<-mergerd
             need_to_be_removed<-c(need_to_be_removed, elements[-length(elements)])
           }
@@ -242,6 +246,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
       return(final_res)
     }
     fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI"){
+      if(0){input<-string;M=TRUE;mode="XVI"}
       #输入为被压缩为一个元素的字符串，输出用Juman++进行形态素解析的结果（矩阵），default为进行连续名词合并。
       #先串连文本出现的所有句读点为一条字符串，并对其用Juman++进行所有用句读点将文本切割成短句。
       #然后使用Juman++对每个短句进行形态素解析，最后按照“一个（无句读点）短句+原文中后接句读点”的方式叠加等长度向量作为结果输出
@@ -252,17 +257,10 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
         Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
         len_sentences<-length(Non_Punctuation_Marks)
         Warehouse<-list()
-        for(i in 1:len_sentences){
-          Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=0)
-          cat(i, "\n")
-        }
-        #Final_Result<-rbind(Warehouse[[1]], Analyzed_Results_for_Punctuation_Marks[1,])
+        for(i in 1:len_sentences){Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=0);cat(i, "\n")}
         Final_Result<-Warehouse[[1]]
         if(length(Warehouse)>=2){
-          for(i in 2:len_sentences){
-            #Final_Result<-rbind(Final_Result, Warehouse[[i]], Analyzed_Results_for_Punctuation_Marks[i,])
-            Final_Result<-rbind(Final_Result, Warehouse[[i]])
-          }
+          for(i in 2:len_sentences) Final_Result<-rbind(Final_Result, Warehouse[[i]])
         }
       }
       if(0){
@@ -280,6 +278,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
       if(mode=="XII"){
         Final_Result<-Final_Result[,-c(5, 7, 9, 11)]
       }
+      Final_Result<-fun_merge(Final_Result)
       return(Final_Result)
     }
     #输入同上，输出用MeCab进行形态素解析的结果（矩阵）；已嵌入连续名词的合并。
@@ -510,13 +509,13 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
         x<-str_replace_all(x, "可く", "べく")
         x<-str_replace_all(x, "可し", "べし")
       }
-      rear_padding<-matrix("", 3, 10)
-      M_Res<-rbind(M_Res, rear_padding)
+      #rear_padding<-matrix("", 3, 10)
+      #M_Res<-rbind(M_Res, rear_padding)
       #Mixture<-fun_ReadIn(x=x)
       #J_Res<-Mixture[[1]]
       jn<-nrow(J_Res)#J_Res中含词素的总数
       #M_Res<-Mixture[[2]]
-      mn<-nrow(M_Res)#M_Res中含词素的总数
+      mn<-nrow(M_Res)-3#M_Res中含词素的总数
     }#チェック済み
     #为最终结果（矩阵）准备列名
     if(1){
@@ -1672,8 +1671,9 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
                    Pots_L_14_M,        #12 M +
                    Pots_L_15_J)        #13 J -
       names(POTS_B)<-Literary_Style_Basic_Forms
-      for(i in 1:13)#为文语体助动词赋名以最深层标签
+      for(i in 1:13){#为文语体助动词赋名以最深层标签
         names(POTS_B[[i]])<-Deepest_ブンゴ[[i]]
+      }
       POTS_AB<-list(POTS_A, POTS_B)#将上述2者并为1个list对象
       #将POTS_A与POTS_B划分为以“M”结尾的和以“J”结尾的list对象群（备注：M为主，J为辅）
       End_with_J<-list(#POTS_A中，以“J”结尾的对象列表
@@ -1957,11 +1957,13 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x, J_Res, M_Res){#x为文本
         rle_len<-rle(res2compact[[1]])$lengths
         res2compact[[1]][cumsum(rle_len)[which(rle_len==2)]]<-res2compact[[1]][cumsum(rle_len)[which(rle_len==2)]]+1
       }
-      res2compact[[1]]<-c(res2compact[[1]], HIT_M$"行编号")
+      if(!is.null(HIT_M$行编号)){
+        res2compact[[1]]<-c(res2compact[[1]], HIT_M$"行编号")  
+      }
       if(nrow_M!=0){
         transformed_HIT_M<-data.frame(浅层标签="助動詞",
-                                      中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
-                                      深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
+                                          中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
+                                          深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
         res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
       }
       return(res2compact)
