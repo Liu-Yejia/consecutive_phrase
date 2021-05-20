@@ -1,10 +1,15 @@
-fun_BSPattern_reproduction<-function(x, mode="M"){
+fun_BSPattern_reproduction<-function(x, mode="M")
+{
   #既存の文節パターンＢ特徴量ベクトルを再現。
   #对象x为MeCab或Juman++的词素解析结果（矩阵，前者10列，后者16列）
   #参数mode用来指定对象x为MeCab还是Juman++的词素解析结果。
   nr<-nrow(x)#先数对象x有几行
   SupCo<-ifelse(mode=="M", 2, 4)#上位概念（Superordinate Concept）的缩写，即词素品词大分类所在列序号
   SubCo<-ifelse(mode=="M", 3, 6)#下位概念（Subordinate Concept）的缩写，即词素品词小分类所在列序号
+  cut_tail<-F
+  if(is.null(nr)){
+    x<-rbind(x, rep("", 10))  
+  }
   Surface_chain<-x[, 1]
   SupCo_Chain<-x[, SupCo]
   Sueoki<-which(str_detect(SupCo_Chain, "^(助詞|記号)$"))#変数名の通り，表層形態素のままで（据え置き）
