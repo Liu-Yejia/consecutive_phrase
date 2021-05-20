@@ -21,6 +21,7 @@ fun_jumanpp_R_51<-function(input, M=TRUE, mode="XVI")
       Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=mode)
       cat(i, "\n")
     }
+    Final_Result<-Warehouse[[1]]
     if(length(Warehouse)>=2){
       for(i in 2:len_sentences){
         Final_Result<-rbind(Final_Result, Warehouse[[i]])
