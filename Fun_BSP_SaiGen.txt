@@ -1,4 +1,4 @@
-Fun_BSP_SaiGen<-function(x, deno=0)#文節パターンＢの再現
+Fun_BSP_SaiGen<-function(x)#文節パターンＢの再現
 { 
   library(dplyr)#因为之后要用pipe运算符
   #x为日语的plain text
@@ -7,9 +7,9 @@ Fun_BSP_SaiGen<-function(x, deno=0)#文節パターンＢの再現
   middle_res<-rep("", len_res_cabocha)#创空list存中期结果
   #需要提前考虑最后比率化时用的分母
   if(1){
-    分母0<-nchar(x)#x的总字数
-    分母1<-0#x的总词素数
-    分母2<-0#x的总文节数
+    分母1<-nchar(x)#x的总字数
+    分母2<-0#x的总词素数
+    分母3<-0#x的总文节数
   }
   for(i in 1:len_res_cabocha){
     cat(i, " starts.\n")
@@ -18,12 +18,16 @@ Fun_BSP_SaiGen<-function(x, deno=0)#文節パターンＢの再現
     cat(i, " ends.\n")
     temp<-nrow(current_res_mecab)
     当前文节含词素数<-ifelse(!is.null(temp), temp, 0)
-    分母1<-分母1+当前文节含词素数
-    分母2<-分母2+1
+    分母2<-分母2+当前文节含词素数
+    分母3<-分母3+1
     rm(current_res_mecab)
   }
-  分母向量<-c(分母0, 分母1, 分母2)
-  分母<-分母向量[deno+1]
-  final_res<-table(middle_res)/分母
-  list(final_res=final_res, 分母向量=分母向量)
+  度数向量<-table(middle_res)
+  相对度数向量集<-list(
+    字符数=度数向量/分母1,
+    词素数=度数向量/分母2,
+    文节数=度数向量/分母3
+  )
+  分母集<-c(分母1, 分母2, 分母3)
+  list(度数向量=度数向量, 相对度数向量集=相对度数向量集, 分母集=分母集)
 }
