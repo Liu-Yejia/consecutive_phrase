@@ -1,0 +1,29 @@
+Fun_BSP_SaiGen<-function(x, deno=0)#文節パターンＢの再現
+{ 
+  library(dplyr)#因为之后要用pipe运算符
+  #x为日语的plain text
+  res_cabocha<-fun_cabocha(x)#先将x切成n个文节
+  len_res_cabocha<-length(res_cabocha)#求n值
+  middle_res<-rep("", len_res_cabocha)#创空list存中期结果
+  #需要提前考虑最后比率化时用的分母
+  if(1){
+    分母0<-nchar(x)#x的总字数
+    分母1<-0#x的总词素数
+    分母2<-0#x的总文节数
+  }
+  for(i in 1:len_res_cabocha){
+    cat(i, " starts.\n")
+    current_res_mecab<-res_cabocha[i]%>%Analytic_MeCab_429()#对于当前文节用MeCab进行词素解析
+    middle_res[i]<-current_res_mecab%>%fun_BSPattern_reproduction()#对于当前文节的词素解析结果抽取【文節パターンＢ】特征量
+    cat(i, " ends.\n")
+    temp<-nrow(current_res_mecab)
+    当前文节含词素数<-ifelse(!is.null(temp), temp, 0)
+    分母1<-分母1+当前文节含词素数
+    分母2<-分母2+1
+    rm(current_res_mecab)
+  }
+  分母向量<-c(分母0, 分母1, 分母2)
+  分母<-分母向量[deno+1]
+  final_res<-table(middle_res)/分母
+  list(final_res=final_res, 分母向量=分母向量)
+}
