@@ -822,7 +822,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
           rm(Matched_Morphemes_Serial_Numbers)
         }
         #C_IV_J[3]<-C_IV_J[3]+length(which(str_detect(J_Res[, 2], "^.*らぬ$|^.*しれぬ$|^おもわぬ$")))
-        Pots_C_IV_J[[3]]<-sort(union(Pots_C_IV_J[[3]], which(str_detect(J_Res[, 2], "^.*らぬ$|^.*しれぬ$|^おもわぬ$"))))
+        #Pots_C_IV_J[[3]]<-sort(union(Pots_C_IV_J[[3]], which(str_detect(J_Res[, 2], "^.*らぬ$|^.*しれぬ$|^おもわぬ$"))))
+        Pots_C_IV_J[[3]]<-sort(unique(c(Pots_C_IV_J[[3]], which(str_detect(J_Res[, 2], "^.*らぬ$|^.*しれぬ$|^おもわぬ$")))))
       }
       # V_う/よう
       if(1){
@@ -975,9 +976,15 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
           #填充
           #setdiff(Matched_Morphemes_Serial_Numbers, A)
           if(1){
-            Pots_C_IX_J[[1]]<-sort(union(a5, a8, a11))
-            Pots_C_IX_J[[2]]<-sort(union(a2, a6, a7, a9, a10, a12))
-            Pots_C_IX_J[[3]]<-sort(union(a1, a4_1))
+            if(sum(c(a5, a8, a11))!=0){
+              Pots_C_IX_J[[1]]<-sort(unique(c(a5, a8, a11)))
+            }
+            if(sum(c(a2, a6, a7, a9, a10, a12))!=0){
+              Pots_C_IX_J[[2]]<-sort(unique(c(a2, a6, a7, a9, a10, a12)))
+            }
+            if(sum(c(a1, a4_1))!=0){
+              Pots_C_IX_J[[3]]<-sort(unique(c(a1, a4_1)))
+            }
             Pots_C_IX_J[[4]]<-a3
             Pots_C_IX_J[[5]]<-a4_2
           }
@@ -1011,7 +1018,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
             f<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="文語連体形")] # “らしき”
           }
           if(1){
-            Pots_C_X_J[[1]]<-union(b, c)
+            Pots_C_X_J[[1]]<-sort(unique(c(b, c)))
             Pots_C_X_J[[2]]<-d_2
             Pots_C_X_J[[3]]<-d_1
             Pots_C_X_J[[4]]<-e
@@ -1315,7 +1322,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           if(1){
             Pots_L_3_M[[1]]<-which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="き")
-            Pots_L_3_M[[2]]<-union(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="し"), extra_pos)
+            Pots_L_3_M[[2]]<-sort(unique(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="し"), extra_pos))
           }
           if(0){
             L_3_M<-c(length(which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="き")),
@@ -1337,7 +1344,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
         }
         if(length(Matched_Morphemes_Serial_Numbers)>0){
           if(1){
-            Pots_L_4_M[[1]]<-sort(union(Matched_Morphemes_Serial_Numbers, extra_pos))
+            Pots_L_4_M[[1]]<-sort(unique(c(Matched_Morphemes_Serial_Numbers, extra_pos)))
           }
           if(0){
             L_4_M<-length(Matched_Morphemes_Serial_Numbers)+length(extra)  
@@ -1453,7 +1460,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
             Continuative_Form<-setdiff(temp, End_Form)#連用形
             Attributive_Form<-Completion[which(str_detect(M_Res[Completion, 1], "^たる.*$"))]#連体形
             Attributive_Form_extra<-Completion[which(str_detect(M_Res[Completion, 1], "^.+来たる$"))]
-            Attributive_Form<-sort(union(Attributive_Form, Attributive_Form_extra))
+            #Attributive_Form<-sort(union(Attributive_Form, Attributive_Form_extra))
+            Attributive_Form<-sort(unique(c(Attributive_Form, Attributive_Form_extra)))
             temp_1<-Completion[which(str_detect(M_Res[Completion, 1], "^たれ.*$"))]
             #Conditional_Form<-Completion[which(str_detect(M_Res[Completion, 1], "^たれ.*$")&str_detect(M_Res[Completion+1, 1], "^ば.*$"))]#仮定形
             Conditional_Form<-temp_1[which(str_detect(M_Res[temp_1+1, 1], "^ば.*$"))]
@@ -1507,7 +1515,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
           }
         }
         if(1){
-          Pots_L_7_M[[3]]<-sort(union(Pots_L_7_M[[3]], pos_extra_sitarigao))
+          #Pots_L_7_M[[3]]<-sort(union(Pots_L_7_M[[3]], pos_extra_sitarigao))
+          Pots_L_7_M[[3]]<-sort(unique(c(Pots_L_7_M[[3]], pos_extra_sitarigao)))
         }
         if(0){
           L_7_M[3]<-L_7_M[3]+length(unlist(str_match_all(x, "したり顔")))  
@@ -1582,7 +1591,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
             d<-temp_0[which(M_Res[temp_0-1, 7]=="体言接続")]
             e<-temp_0[which(str_detect(M_Res[temp_0-1, 2], "名詞|接続詞|副詞|接頭詞|形容動詞")&M_Res[temp_0, 1]=="なれ"&M_Res[temp_0+1, 1]=="ば"&M_Res[temp_0+2, 1]=="こそ")]
             f<-temp_0[which(str_detect(M_Res[temp_0-1, 2], "名詞|接続詞|副詞|接頭詞|形容動詞")&M_Res[temp_0, 1]=="なら"&str_detect(M_Res[temp_0+1, 1], "^ず|ぬ$"))]
-            temp_0<-union(c(a, b, c, d, e, f))
+            #temp_0<-union(c(a, b, c, d, e, f))
+            temp_0<-sort(unique(c(a, b, c, d, e, f)))
             rm(list=c("a", "b", "c", "d", "e", "f"))
           }
           temp_1<-which(str_detect(M_Res[, 1], "^.+なる$"))
