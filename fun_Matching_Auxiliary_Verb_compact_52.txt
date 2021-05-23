@@ -1039,8 +1039,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
           c<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形")]
           if(1){
             c_1<-c[which(M_Res[c+1, 2]!="名詞")]
-            c_1_1<-NULL
-            c_1_2<-NULL
+            c_1_1<-0
+            c_1_2<-0
             if(length(c_1)!=0){
               c_1_1<-c(c_1[which(M_Res[c_1+1, 1]=="る")],# “まする”
                        c[which(M_Res[c, 1]=="まする")])# “一些特殊情况，譬如：かえりみ_まする_に”
@@ -1115,8 +1115,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
         Pots_C_XIII_M<-list(0, 0, 0, 0)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           special<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形")]
-          following_noun<-NULL#后接名词
-          following_non_noun<-NULL#后接非名词
+          following_noun<-0#后接名词
+          following_non_noun<-0#后接非名词
           if(length(special)!=0){
             following_noun<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers+1, 2]=="名詞"|M_Res[Matched_Morphemes_Serial_Numbers+1, 8]=="もん")] # 連体形
             following_non_noun<-setdiff(special, following_noun) # 終止形
@@ -1166,8 +1166,8 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
             state_c<-temp_Souda_state[which(str_detect(J_Res[temp_Souda_state, 1], "^そう(だ$|です$|でした$|でして$)"))]#終止
             state_d<-temp_Souda_state[which(J_Res[temp_Souda_state, 1]=="そうな")]#連体
             state_suspicion<-temp_Souda_state[which(J_Res[temp_Souda_state, 1]=="そう")]#尚待细分
-            state_e<-NULL
-            state_f<-NULL
+            state_e<-0
+            state_f<-0
             if(length(state_suspicion)!=0){
               state_e<-state_suspicion[which(J_Res[state_suspicion+1, 1]=="なら")]#仮定
               state_f<-setdiff(state_suspicion, state_e)#語幹
@@ -1230,18 +1230,22 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
           extra_pos<-NULL
           if(extra!=0){
             extra_pos_temp<-which(str_detect(M_Res[,1], "^[足た]ら$"))+1
-            extra_pos<-extra_pos_temp[which(M_Res[extra_pos+1,1]=="しめ")]
+            extra_pos<-extra_pos_temp[which(M_Res[extra_pos_temp, 1]=="しめ")]
           }
         }
+        Matched_Morphemes_Serial_Numbers<-unique(c(Matched_Morphemes_Serial_Numbers, extra_pos))
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           if(1){
+            c_1<-numeric(0)
+            c_2<-numeric(0)
             a<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "未然形|意志形"))] # 未然形
             b<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "^タ[系形].*|基本連用形"))] 
-            b<-c(b, extra) # 連用形
+            b<-unique(c(b, extra_pos)) # 連用形
             c<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形")]
-            if(1){
+            if(length(c)){
               c_2<-c[which(J_Res[c+1, 4]=="名詞")] # 連体形
               c_1<-setdiff(c, c_2) # 終止形
+              #cat(1, "\n")
             }
             d<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")] # 仮定形
             e<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "命令形"))] # 命令形
@@ -1639,7 +1643,6 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
   if(1){
     #4/14更新
     if(1){
-      #----
       #为助动词词素准备最深层标签，即活用形
       CFT4AuxVerbs_コウゴ<-list(#此处的对象名前半部分的“CFT4AuxVerbs”为“Conjugated Forms Tag for Auxiliary Verbs”的缩写；后半部分的“コウゴ”为其字面意思，即“口語形”。
         #----
@@ -1704,9 +1707,18 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
                    Pots_C_XIV_J,       #15 J -
                    #----
                    Pots_C_XV_J)        #16 J -
+      POTS_A<-fun_wash_integer0(POTS_A)
+      
+      
+      
       names(POTS_A)<-Colloquial_Style_Basic_Forms
       for(i in 1:16){#为口语体助动词赋名以最深层标签
+        #i<-14; POTS_A[[i]]
+        length(POTS_A[[i]])
+        length(Deepest_コウゴ[[i]])
+        cat(i, "\n")
         names(POTS_A[[i]])<-Deepest_コウゴ[[i]]
+        cat(i, "\n")
       }
       #将存储了词素解析结果中各助动词（文语体）活用形行编号的list对象统合为一个新的list对象。
       POTS_B<-list(Pots_L_1_J,         #1  J -
@@ -1725,6 +1737,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
                    #----
                    Pots_L_15_J)        #13 J -
       names(POTS_B)<-Literary_Style_Basic_Forms
+      POTS_B<-fun_wash_integer0(POTS_B)
       for(i in 1:13){#为文语体助动词赋名以最深层标签
         names(POTS_B[[i]])<-Deepest_ブンゴ[[i]]
       }
@@ -1822,7 +1835,6 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
       nrow_J<-nrow(HIT_J)#J_Res中匹配到的词素数
       nrow_M<-nrow(HIT_M)#M_Res中匹配到的词素数
       #----
-      
       if(nrow_J!=0){
         J_wait2project_sn<-HIT_J[, 2]#J_Res中尚待映射的助动词词素的行编号（注：sn为series numbers的缩写）
         #----
@@ -2018,9 +2030,9 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
       }
       if(nrow_M!=0){
         transformed_HIT_M<-as.matrix(data.frame(浅层标签="助動詞",
-                                                中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
-                                                #深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
-                                                深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
+                                                    中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
+                                                    #深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
+                                                    深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
         res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
       }
       return(res2compact)
