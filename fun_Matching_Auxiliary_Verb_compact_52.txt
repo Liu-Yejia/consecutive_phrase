@@ -805,10 +805,15 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
       if(1){
         Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="ぬ"&J_Res[, 4]=="助動詞")
         Pots_C_IV_J<-list(0, 0, 0, 0)
+        nitakuitsu<-F
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           if(1){
-            Pots_C_IV_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[, 2]=="ず")]
+            Pots_C_IV_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 2]=="ず")]
             Pots_C_IV_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "基本形")&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 4], "助|特殊"))]
+            if(length(Pots_C_IV_J[[2]])!=0){
+              nitakuitsu<-T
+              nitakuitsu_num<-Pots_C_IV_J[[2]]
+            }
             Pots_C_IV_J[[3]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 10], "基本形")&J_Res[Matched_Morphemes_Serial_Numbers+1, 4]=="名詞")]
             Pots_C_IV_J[[4]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")]
           }
@@ -1287,6 +1292,9 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
         #小林賢次(1995). 「（言わ）んばかり」考：慣用表現の成立と展開. 日本語研究. 15, 194-204.
         ##----
         Matched_Morphemes_Serial_Numbers<-which(M_Res[, 2]=="助動詞"&M_Res[, 6]=="不変化型"&M_Res[, 7]=="基本形"&M_Res[, 8]=="ん")
+        if(nitakuitsu){
+          Matched_Morphemes_Serial_Numbers<-setdiff(Matched_Morphemes_Serial_Numbers, nitakuitsu_num)
+        }
         Pots_L_2_M<-list(0, 0)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           Attributive_Form<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers+1, 2]=="名詞"|M_Res[Matched_Morphemes_Serial_Numbers+1, 1]=="ばかり")]
@@ -1654,7 +1662,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
   #最后，将上述两个模块的结果整合
   if(1){
     #4/14更新
-    if(1){
+
       #为助动词词素准备最深层标签，即活用形
       CFT4AuxVerbs_コウゴ<-list(#此处的对象名前半部分的“CFT4AuxVerbs”为“Conjugated Forms Tag for Auxiliary Verbs”的缩写；后半部分的“コウゴ”为其字面意思，即“口語形”。
         #----
@@ -1863,7 +1871,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
           if(length(perfectly_hit)!=0){#若存在“完美匹配”
             if(length(perfectly_hit)==1){#如果M_Res只存在1个与映射起点J_i完全一致的词素（映射终点）的话，直接记下其行编号，和映射起点词素的3阶段粒度信息。
               res2compact[[1]]<-c(res2compact[[1]], perfectly_hit)#把映射终点词素的行编号追加到res2compact的第1要素中。
-              res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+              res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
             }else{
               #如果M_Res存在2个以上与映射起点J_i完全一致的词素（映射终点）的话，对比映射起点前后的1个词素和各映射终点前后的1个词素（若存在），定位正确的映射终点词素。
               #具体方式为检测二者前后的1个词素（若存在）是否存在涵盖关系（例：存在字符串“ABCDE”，对此，J_Res的首列为“A/B/C/D/E”，M_Res的首列为“AB/C/D/E”。
@@ -1912,13 +1920,13 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
                 #根据boolean_matrix的第2行，决定比较对象是映射起点/终点的前方还是后方的1个词素
                 if(boolean_matrix[1, 1]&boolean_matrix[2, 1]){#如果映射起点和（当前）映射终点左侧均存在词素的话，执行以下代码
                   if(str_detect(jbefore, mbefore)|str_detect(mbefore, jbefore)){#若各自左侧词素间存在包含关系
-                    res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                     break
                   }
                 }else{
                   if(boolean_matrix[1, 2]&boolean_matrix[2, 2]){#如果映射起点和（当前）映射终点右侧均存在词素的话，执行以下代码
                     if(str_detect(jafter, mafter)|str_detect(mafter, jafter)){#若各自右侧词素间存在包含关系
-                      res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                      res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                       break
                     }
                   }else{
@@ -1946,32 +1954,32 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
             #case 1
             if(any(res_case_1)){
               if(sum(res_case_1)==1){#M_Res中只有一个词素符合case1
-                res2compact[[1]]<-c(res2compact[[1]], which(res_case_1)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[1]]<-c(res2compact[[1]], which(res_case_1)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               }else{#M_Res中有多个词素符合case1
                 numbers<-which(res_case_1)
                 bingo<-numbers[which(str_sub(M_Res[numbers-1, 1], -1)==str_sub(origin_before, -1))]
-                res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               }
             }
             #case 2
             if(any(res_case_2)){#若M_Res中存在符合case 2的词素
               if(sum(res_case_2)==1){
-                res2compact[[1]]<-c(res2compact[[1]], which(res_case_2)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[1]]<-c(res2compact[[1]], which(res_case_2)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               }else{
                 numbers<-which(res_case_2)
                 bingo<-numbers[which(str_sub(M_Res[numbers+1, 1], 1, 1)==str_sub(origin_after, 1, 1))]
-                res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               }
             }
             #case 3
             if(any(res_case_3)){#若M_Res中存在词素满足case 3，即映射起点完整包含于M_Res中某1词素中
               if(sum(res_case_3)==1){#若M_Res中只有1个词素符合case3
-                res2compact[[1]]<-c(res2compact[[1]], which(res_case_3)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[1]]<-c(res2compact[[1]], which(res_case_3)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               }else{#若M_Res中存在多个词素符合case 3
                 numbers<-which(res_case_3)
                 zengo<-str_split_fixed(M_Res[numbers, 1], origin, 2)#用origin将M_Res中包含它的词素分割为前半部分与后半部分，各成1列
                 bingo<-numbers[which(str_sub(zengo[, 1], -1)==str_sub(origin_before, -1)&str_sub(zengo[, 2], 1, 1)==str_sub(origin_after, 1, 1))]#若zengo中存在某1行i，满足M_Res[zengo_i1, 1]的最后1个字符与origin_before的最后1个字符相同，且M_Res[zengo_i2, 1]的最初1个字符与origin_after的最初1个字符相同
-                res2compact[[1]]<-c(res2compact[[1]], bingo[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[1]]<-c(res2compact[[1]], bingo[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               }
             }
             #case 4以降  
@@ -1980,27 +1988,27 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
               for(y in 1:mn) res_case_4[y]<-str_detect(origin, M_Res[y, 1])
               if(any(res_case_4)){
                 if(sum(res_case_4)==1){#M_Res中只有1个词素符合case 4
-                  res2compact[[1]]<-c(res2compact[[1]], which(res_case_4)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                  res2compact[[1]]<-c(res2compact[[1]], which(res_case_4)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                 }else{#M_Res中有多个词素符合case 4
                   if(sum(res_case_4)==2 & (which(res_case_4)[2]-which(res_case_4)[1]==1)){#M_Res中有2个词素符合case 4且2者连续
                     #此处操作比较复杂：假设连续的2个词素（M_x和M_X+1，下标为序列号）组成了映射起点（origin）。
                     #并且origin含两个助动词（第1义与第2义）。如，さ【せた】含两个助动词活用形：【せ】与【た】。
                     #为解决该问题，苦思冥想后，给出下述解决方案；匹配【せる】时，将x追加至res2compact[[1]]中，将第1义追加至res2compact[[2]]中；匹配【た】时，同样将x追缴至res2compact[[1]]中，将第2义追加至res2compact[[2]]中。
                     #在最后输出res2compact时，
-                    res2compact[[1]]<-c(res2compact[[1]], which(res_case_4)[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    res2compact[[1]]<-c(res2compact[[1]], which(res_case_4)[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                   }else{#若M_Res中有多个词素符合case 4且互不连续，则需要判定哪一个是真正的映射终点
                     #寻找真正的映射终点，可以想到的是连接其与前后各1个词素组成的字符串必包含映射起点。
                     middles<-which(res_case_4)#M_Res中符合case 4的词素的序列号
                     connect_tri<-paste0(M_Res[middles-1, 1], M_Res[middles, 1], M_Res[middles+1, 1])#连接M_Res[middles]与其前后的1个词素
                     bingo<-middles[which(str_detect(connect_tri, origin))][1]#定位包含映射起点的那一组
-                    res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                   }
                 }
               }else{
                 #case 5或case 6；若M_Res中不存在词素满足case 1-4，则必有词素满足case 5或6
                 vec_overlap<-vector(FALSE, mn)#生成要素皆为FALSE的向量，长度为M_Res的行数
                 for(z in 1:mn) vec_overlap[z]<-fun_overlap(M_Res[z, 1], origin)
-                res2compact[[1]]<-c(res2compact[[1]], which(vec_overlap)[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[1]]<-c(res2compact[[1]], which(vec_overlap)[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               }
             }
             if(0){
@@ -2009,17 +2017,17 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
               matching_res_4<-str_detect(origin, M_Res[, 1])#检测是否符合(4)这种情况。
               if(sum(matching_res_1to3)==1){
                 res2compact[[1]]<-c(res2compact[[1]], which(matching_res_1to3))
-                res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                 break
               }else{
                 if(sum(matching_res_4)>=1){
                   if(sum(matching_res_4)==1){
                     res2compact[[1]]<-c(res2compact[[1]], which(matching_res_4))
-                    res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                     break  
                   }else{
                     res2compact[[1]]<-c(res2compact[[1]], which(matching_res_4)[2])
-                    res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                    res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                     break  
                   }
                 }else{
@@ -2028,7 +2036,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
                     vec_overlap[z]<-fun_overlap(M_Res[z, 1], origin)#*函数fun_overlap仍需检查与校对
                   }
                   res2compact[[1]]<-c(res2compact[[1]], which(vec_overlap)[1])
-                  res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste(HIT_J$基本形[i], HIT_J$活用形种类[i], sep="_")))
+                  res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                 }
               }
             }
@@ -2042,9 +2050,9 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
       }
       if(nrow_M!=0){
         transformed_HIT_M<-as.matrix(data.frame(浅层标签="助動詞",
-                                                    中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
-                                                    #深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
-                                                    深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
+                                                中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
+                                                #深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
+                                                深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
         res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
       }
       return(res2compact)
@@ -2118,4 +2126,3 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
       list(Frequencies=A, Relative_Frequencies=B, Denominator_shifted_to_Aux=C, Third_Denominator=D, Total_Frequencies_Relative_Frequencies=E)#对上述单对象（A, B, C, D）打包，输出。
     }
   }
-}
