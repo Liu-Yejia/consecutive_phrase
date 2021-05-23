@@ -277,7 +277,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
         mode<-ifelse(mode=="XVI", 0, 1)
         for(i in 1:len_sentences){
           Warehouse[[i]]<-Rebuilt_Parts[i]%>%Analytic_Jumanpp_Improved(merge=TRUE, mode=mode)
-          cat(i, "\n")
+          #cat(i, "\n")
         }
         Final_Result<-Warehouse[[1]]
         if(length(Warehouse)>=2){
@@ -559,12 +559,14 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
       }
       Mixture<-fun_ReadIn(x=x)
       rear_padding<-matrix("", 3, 10)
+      rear_padding_J<-rep("", 16)
       Mixture<-fun_ReadIn(x=x)
-      J_Res<-Mixture[[1]]
-      jn<-nrow(J_Res)#J_Res中含词素的总数
+      net_J_Res<-Mixture[[1]]
       net_M_Res<-Mixture[[2]]
       M_Res<-rbind(net_M_Res, rear_padding)
+      J_Res<-rbind(net_J_Res, rear_padding_J)
       mn<-nrow(net_M_Res)#M_Res中含词素的总数
+      jn<-nrow(net_J_Res)#J_Res中含词素的总数
     }#チェック済み
     #为最终结果（矩阵）准备列名
     if(1){
@@ -1716,9 +1718,9 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
         #i<-14; POTS_A[[i]]
         length(POTS_A[[i]])
         length(Deepest_コウゴ[[i]])
-        cat(i, "\n")
+        #cat(i, "\n")
         names(POTS_A[[i]])<-Deepest_コウゴ[[i]]
-        cat(i, "\n")
+        #cat(i, "\n")
       }
       #将存储了词素解析结果中各助动词（文语体）活用形行编号的list对象统合为一个新的list对象。
       POTS_B<-list(Pots_L_1_J,         #1  J -
