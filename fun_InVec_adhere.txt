@@ -1,0 +1,18 @@
+fun_InVec_adhere<-function(vec, sep="")
+{
+  library(stringr)
+  len<-length(vec)
+  if(len>=2){
+    res<-vec[1]
+    for(i in 2:len){
+      if(vec[i]!=""){
+        res<-str_c(res, vec[i], sep=sep)
+      }else{
+        break
+      }
+    }
+  }else{
+    res<-vec
+  }
+  return(res)
+}
