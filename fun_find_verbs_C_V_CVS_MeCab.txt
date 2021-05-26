@@ -14,6 +14,8 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
     }  
   }
   x<-which(material[,2]=="動詞")
+  #old_material<-material
+  material<-rbind(material, rep("", 10))
   if(length(x)!=0){
     objects_res<-material[x,]
     num_objects<-length(x)
@@ -45,7 +47,6 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
     #填充<活用形>矩阵
     if(1){
       if(num_objects>1){
-        colnames(Conjugates_Matrix)
         Conjugates_Matrix[which(objects_res[,7]=="未然ヌ接続"), 1]<-1
         Conjugates_Matrix[which(str_detect(objects_res[,7], "^未然(?!.*ヌ接続).*$")), 2]<-1
         #Conjugates_Matrix[which(objects_res[,7]=="連用タ接続"), 3]<-1
@@ -100,7 +101,11 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
       }
     }
     #list(匹配序列号=x, 活用形=Conjugates_Matrix, 子母サカ=CVS_Matrix)
-    基本形<-ifelse(num_objects>1, objects_res[, 8], objects_res[8])
+    if(num_objects>1){
+      基本形<-objects_res[, 8]
+    }else{
+      基本形<-objects_res[8]
+    }
     活用形<-types[apply(Conjugates_Matrix, 1, fun_0)]
     匹配序列号<-x
     三阶粒度=data.frame(浅层标签="動詞",
