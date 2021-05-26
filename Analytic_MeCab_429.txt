@@ -1,18 +1,29 @@
 Analytic_MeCab_429<-function(input)
-  {
+{
+  #input<-"極めて"
+  #input<-"典麗なる稲妻"
   library(stringr)
   if(1){
-    fun_InVec_adhere<-function(vec, sep=""){
+    fun_InVec_adhere<-function(vec, sep="")
+    {
       library(stringr)
       len<-length(vec)
-      res<-vec[1]
-      for(i in 2:len){
-        if(vec[i]!="") res<-str_c(res, vec[i], sep=sep)
-        else break
+      if(len>=2){
+        res<-vec[1]
+        for(i in 2:len){
+          if(vec[i]!=""){
+            res<-str_c(res, vec[i], sep=sep)
+          }else{
+            break
+          }
+        }
+      }else{
+        res<-vec
       }
       return(res)
     }
-    fun_rough_merge<-function(X, position=2, anchor_label="名詞"){
+    fun_rough_merge<-function(X, position=2, anchor_label="名詞")
+    {
       fun_temp<-function(x)length(unique(x))
       Summary<-rle(X[,position])
       len<-Summary$lengths
@@ -43,7 +54,9 @@ Analytic_MeCab_429<-function(input)
       }
       return(X)
     }
-    fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre"){
+    fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre")
+    { 
+      if(0){x<-Final_Result; mode="J"; target="Suf"}
       #----
       fun_Trivial_Prefix<-function(x, y){
         library(stringr)
@@ -67,6 +80,7 @@ Analytic_MeCab_429<-function(input)
         return(Res)
       }
       fun_Trivial_Suffix<-function(x, y){
+        if(0){x<-Current_NounLine; y<-Current_SuffixLine}
         library(stringr)
         #本函数用来适切地将“名词”行和后接的“接尾词”行合并为1行
         #输入x,y为两条长度均为含15个元素的向量,且为处理后的Juman++形态素解析结果
@@ -103,7 +117,8 @@ Analytic_MeCab_429<-function(input)
               Current_NounLine<-x[Noun_lines[i], ]#现在的“名词”行
               Fused<-paste0(Current_PrefixLine, Current_NounLine)#把（当前）“接头辞”行与后续的“名词”行的对应元素粘起来
               Fused[c(2,3)]<-Current_NounLine[c(2,3)]#将其中第2元素（品词大分类），第3元素（品词小分类）替换为“名词”行的对应元素
-              x[Noun_lines[i],]<-Fused#用混合好了的行替换接头词行后的名词行
+              len_Fused<-length(Fused)
+              x[Noun_lines[i], 1:len_Fused]<-Fused#用混合好了的行替换接头词行后的名词行
             }
             new_x<-x[-Prefix_lines, ]#删除所有接头词行
           }else{
@@ -120,7 +135,8 @@ Analytic_MeCab_429<-function(input)
                 Current_PrefixLine<-x[Prefix_lines[i],]
                 Current_NounLine<-x[Noun_lines[i],]
                 Fused<-fun_Trivial_Prefix(Current_PrefixLine, Current_NounLine)
-                x[Noun_lines[i],]<-Fused#用处理好的行替换当前的名词行
+                len_Fused<-length(Fused)
+                x[Noun_lines[i], 1:len_Fused]<-Fused#用处理好的行替换当前的名词行
               }
               new_x<-x[-Prefix_lines,]#删去接头辞行
             }else{
@@ -139,10 +155,14 @@ Analytic_MeCab_429<-function(input)
           len<-length(Suffix_lines)
           if(len!=0){
             for(i in 1:len){
+              cat(i, " starts.\n")
+              if(0){i<-2}
               Current_NounLine<-x[Noun_lines[i],]
               Current_SuffixLine<-x[Suffix_lines[i],]
               Fused<-fun_Trivial_Suffix(Current_NounLine, Current_SuffixLine)
-              x[Noun_lines[i],]<-Fused
+              len_Fused<-length(Fused)
+              x[Noun_lines[i], 1:len_Fused]<-Fused
+              cat(i, " ends.\n")
             }
             new_x<-x[-Suffix_lines,]
           }else{
@@ -154,7 +174,8 @@ Analytic_MeCab_429<-function(input)
         return(new_x)
       }
     }
-    Call_MeCab<-function(input){
+    Call_MeCab<-function(input)
+    {
       #input<-Rebuilt_Parts[i]
       pseudo_input<-paste0("！", input)
       #pseudo_input
@@ -163,8 +184,13 @@ Analytic_MeCab_429<-function(input)
       res_M<-res_M%>%fun_rough_merge()
       res_M<-res_M[-1,]
     }
-  }
+  }#自作関数群
   input<-chartr(old="&()", new="＆（）", input)
+  cut_tail<-F
+  if(!str_detect(input, ".+[、。]$")){
+    cut_tail<-T
+    input<-str_c(input, "、")
+  }
   Punctuation_Marks<-input%>%str_match_all("、|。")%>%unlist()
   Non_Punctuation_Marks<-input%>%str_split("、|。")%>%unlist()%>%head(-1)
   Rebuilt_Parts<-fun_glue(cbind(Non_Punctuation_Marks, Punctuation_Marks), direction=1, sep="")
@@ -194,6 +220,16 @@ Analytic_MeCab_429<-function(input)
     Final_Result[形容動詞位置, 2]<-"形容動詞"
     Final_Result[形容動詞位置, 3]<-"語幹"
   }
+  #找出“補助動詞”
+  if(1){
+    補助動詞位置<-which(Final_Result[, 2]=="動詞"&Final_Result[, 3]=="非自立")
+    Final_Result[補助動詞位置, 2]<-"補助動詞"
+    pos_aru<-which(Final_Result[, 2]=="助動詞"&Final_Result[, 8]=="ある")
+    Final_Result[pos_aru, 2]<-"補助動詞"
+  }
   Final_Result<-fun_rough_merge(Final_Result)
+  if(cut_tail){
+    Final_Result<-Final_Result[-nrow(Final_Result), ]
+  }
   return(Final_Result)
 }
