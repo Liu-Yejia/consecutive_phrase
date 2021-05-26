@@ -801,26 +801,31 @@ new_bunsetsu_patterns_524<-function(string)
           #----
           #对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
           #若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
-          fun_glue<-function(x,direction=1,sep="_"){
-            if(is.null(dim(x))){#检测x是否为向量对象，若是，将其所有元素用sep联结后输出。
+          fun_glue<-function(x,direction=1,sep="_")
+          {
+            if(is.null(dim(x))){
               len<-length(x)
               total<-x[1]
               for(i in 2:len){
                 total<-paste(total,x[i],sep=sep)
               }
-            }else{#若否，根据参数“direction”指定合并方向：若direction为1，->|<-；若2，则垂直方向压缩。
-              dimen<-switch(direction, "1"=ncol(x), "2"=nrow(x))
-              if(direction==1){
-                total<-x[,1]
-                for(i in 2:dimen){
-                  total<-str_c(total, x[,i], sep=sep)
+            }else{
+              if(length(x)!=1){
+                dimen<-switch(direction,
+                              "1"=ncol(x),
+                              "2"=nrow(x))
+                if(direction==1){
+                  total<-x[,1]
+                  for(i in 2:dimen){
+                    total<-str_c(total, x[,i], sep=sep)
+                  }
+                }else{
+                  total<-x[1,]
+                  for(i in 2:dimen){
+                    total<-str_c(total, x[i,], sep=sep)
+                  }
                 }
-              }else{
-                total<-x[1,]
-                for(i in 2:dimen){
-                  total<-str_c(total, x[i,], sep=sep)
-                }
-              }
+              }else{total<-x}
             }
             return(total)
           }
@@ -2605,7 +2610,7 @@ new_bunsetsu_patterns_524<-function(string)
           #然后，按照事先决定的3段粒度填充
           #----
           for(i in 1:nrow_J){#对HIT_J中的每一个词素
-            if(0){i<-1}
+            if(0){i<-2}
             origin<-J_Res[J_wait2project_sn[i], 1]#映射起点（J_Res中的形态素）
             origin_before<-ifelse(J_wait2project_sn[i]!=1, J_Res[J_wait2project_sn[i]-1, 1], "")#当前映射起点前方的1个词素
             origin_after<-J_Res[J_wait2project_sn[i]+1, 1]#当前映射起点后方1个词素
@@ -2794,6 +2799,9 @@ new_bunsetsu_patterns_524<-function(string)
           }
           rle_len<-rle(res2compact[[1]])$lengths
           res2compact[[1]][cumsum(rle_len)[which(rle_len==2)]]<-res2compact[[1]][cumsum(rle_len)[which(rle_len==2)]]+1
+          overflow<-which(res2compact[[1]]>nr_net_M_Res)
+          res2compact[[1]]<-res2compact[[1]][-overflow]
+          res2compact[[2]]<-res2compact[[2]][-overflow,]
         }
         if(!is.null(HIT_M$行编号)){
           res2compact[[1]]<-c(res2compact[[1]], HIT_M$"行编号")
@@ -2894,6 +2902,7 @@ new_bunsetsu_patterns_524<-function(string)
         list(Frequencies=A, Relative_Frequencies=B, Denominator_shifted_to_Aux=C, Third_Denominator=D, Total_Frequencies_Relative_Frequencies=E)#对上述单对象（A, B, C, D）打包，输出。
       }
     }
+    (temp_res<-fun_Matching_Auxiliary_Verb_compact_52(string))
   }
   ##准备M_Res
   if(1){
