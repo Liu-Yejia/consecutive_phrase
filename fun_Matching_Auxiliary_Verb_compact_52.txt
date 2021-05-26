@@ -1,5 +1,6 @@
 fun_Matching_Auxiliary_Verb_compact_52<-function(x)
 {#x为文本
+  if(0){x<-string}
   library(stringr)
   #自制函数
   if(1){
@@ -1883,6 +1884,7 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
       #然后，按照事先决定的3段粒度填充
       #----
       for(i in 1:nrow_J){#对HIT_J中的每一个词素
+        if(0){i<-1}
         origin<-J_Res[J_wait2project_sn[i], 1]#映射起点（J_Res中的形态素）
         origin_before<-ifelse(J_wait2project_sn[i]!=1, J_Res[J_wait2project_sn[i]-1, 1], "")#当前映射起点前方的1个词素
         origin_after<-J_Res[J_wait2project_sn[i]+1, 1]#当前映射起点后方1个词素
@@ -2018,8 +2020,16 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
                 }else{#若M_Res中有多个词素符合case 4且互不连续，则需要判定哪一个是真正的映射终点
                   #寻找真正的映射终点，可以想到的是连接其与前后各1个词素组成的字符串必包含映射起点。
                   middles<-which(res_case_4)#M_Res中符合case 4的词素的序列号
-                  connect_tri<-paste0(M_Res[middles-1, 1], M_Res[middles, 1], M_Res[middles+1, 1])#连接M_Res[middles]与其前后的1个词素
-                  bingo<-middles[which(str_detect(connect_tri, origin))][1]#定位包含映射起点的那一组
+                  if(middles[1]==1){
+                    virtual_M_Res<-rbind(rep("", 10), M_Res)
+                    virtual_middles<-middles+1
+                    virtual_connect_tri<-paste0(virtual_M_Res[virtual_middles-1, 1], virtual_M_Res[virtual_middles, 1], virtual_M_Res[virtual_middles+1, 1])
+                    virtual_bingo<-virtual_middles[which(str_detect(virtual_connect_tri, origin))][1]#定位包含映射起点的那一组
+                    bingo<-virtual_bingo-1
+                  }else{
+                    connect_tri<-paste0(M_Res[middles-1, 1], M_Res[middles, 1], M_Res[middles+1, 1])#连接M_Res[middles]与其前后的1个词素
+                    bingo<-middles[which(str_detect(connect_tri, origin))][1]#定位包含映射起点的那一组
+                  }
                   res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                 }
               }
@@ -2069,9 +2079,9 @@ fun_Matching_Auxiliary_Verb_compact_52<-function(x)
     }
     if(nrow_M!=0){
       transformed_HIT_M<-as.matrix(data.frame(浅层标签="助動詞",
-                                              中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
-                                              #深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
-                                              深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
+                                                  中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),#中层便签："助动词"_基本形
+                                                  #深层标签=paste(HIT_M$"基本形", HIT_M$"活用形种类", sep="_"))#将HIT_M的内容整形成和res2compact一样的
+                                                  深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
       res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
     }
     if(0){old_res2compact<-res2compact}
