@@ -1,3 +1,4 @@
+#活用形情報入り文節パターンを求める関数
 new_bunsetsu_patterns_524<-function(string)
 {
   library(stringr)
@@ -241,6 +242,7 @@ new_bunsetsu_patterns_524<-function(string)
     fun_find_verbs_C_V_CVS_MeCab<-function(material)
     {#此处的material必须为自制函数fun_MeCab的输出（10列矩阵）
       #最基础的几个自制函数
+      if(0){material<-net_M_Res}
       library(stringr)
       if(1){
         #临时函数，输入为向量，输出其中非零元素的位置
@@ -262,8 +264,8 @@ new_bunsetsu_patterns_524<-function(string)
         #生成用来存储结果的矩阵
         #由于MeCab词素解析结果的精度存在不小的问题，此自制函数将输出矩阵由3个减为2个，略去“态”矩阵。
         if(1){
-          Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)#活用形矩阵
-          types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
+          Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=8)#活用形矩阵
+          types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形", "未知")
           colnames(Conjugates_Matrix)<-types
           if(num_objects>1){
             rownames(Conjugates_Matrix)<-objects_res[, 8]
@@ -301,6 +303,7 @@ new_bunsetsu_patterns_524<-function(string)
             Conjugates_Matrix[series_end_form, 5]<-1
             Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
             Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1
+            Conjugates_Matrix[which(rowSums(Conjugates_Matrix)==0), 8]<-1
           }else{
             double_objects_res<-rbind(objects_res, objects_res)
             double_x<-rep(x, 2)
