@@ -1,0 +1,24 @@
+#编写一个函数用来对各篇作品所含文节的N-gram适用new_bunsetsu_patterns_524函数，并将所得结果矩阵封存于列表对象中。
+fun_seal<-function(x){
+  RES<-list()
+  Len_x<-length(x)
+  LenVec<-rep(0, Len_x);for(I in 1:Len_x)LenVec[I]<-length(x[[I]])
+  for(I in 1:Len_x){
+    RES[[I]]<-list(unnecessary="")
+    tumor<-list()
+    for(J in 1:LenVec[I]){
+      tumor[[J]]<-new_bunsetsu_patterns_524(string=x[[I]][J])
+      cat("I: ", I, "/J: ", J, " finished.\n")
+    }
+    RES[[I]]<-list(RES[[I]], tumor)
+  }
+  return(RES)
+}
+#实践
+Res_new_bunsetsu_pattern<-fun_seal(bunsetsu)
+Res_new_bunsetsu_pattern_bi<-fun_seal(bunsetsu_bi)
+Res_new_bunsetsu_pattern_tri<-fun_seal(bunsetsu_tri)
+
+temp_res<-new_bunsetsu_patterns_524(string)
+
+(string<-bunsetsu[[17]][917])
