@@ -1,4 +1,3 @@
-#活用形情報入り文節パターンを求める関数
 new_bunsetsu_patterns_524<-function(string)
 {
   library(stringr)
@@ -2346,6 +2345,7 @@ new_bunsetsu_patterns_524<-function(string)
           if(1){
             if(1){
               temp_0<-which(str_detect(M_Res[, 1], "^な[らりれ]$"))
+              temp_0<-temp_0[which(temp_0>=3)]
               if(length(temp_0)!=0){
                 a<-temp_0[which(str_detect(M_Res[temp_0-1, 2], "名詞|接続詞|副詞|助詞|接頭詞|形容動詞")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[し|す]).*$"))]
                 b<-temp_0[which(M_Res[temp_0-2, 2]=="名詞"&str_detect(M_Res[temp_0-1, 1], "^へ|ばかり$")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[しす]|た[くい]|たかっ).*$"))]
@@ -2905,7 +2905,6 @@ new_bunsetsu_patterns_524<-function(string)
         list(Frequencies=A, Relative_Frequencies=B, Denominator_shifted_to_Aux=C, Third_Denominator=D, Total_Frequencies_Relative_Frequencies=E)#对上述单对象（A, B, C, D）打包，输出。
       }
     }
-    (temp_res<-fun_Matching_Auxiliary_Verb_compact_52(string))
   }
   ##准备M_Res
   if(1){
@@ -2994,7 +2993,11 @@ new_bunsetsu_patterns_524<-function(string)
       if(length(A_series_numbers)>=2){
         A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[, 2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
       }else{
-        A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+        if(length(A_series_numbers)==1){
+          A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+        }else{
+          A_series_numbers<-0;A_3level_granularities<-""
+        }
       }
       FINAL[A_series_numbers, ]<-as.matrix(A_3level_granularities)
     }
