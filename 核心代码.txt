@@ -1,0 +1,211 @@
+
+
+
+
+Z_2020_Pairs<-function(x, threshold=0, pair=2, amount=40, seed=0){
+  #import packages
+  if(1){
+    library(kernlab)
+    library(randomForest)
+    library(ada)
+    library(HDclassif)
+    library(RWeka)
+    library(xgboost)
+    library(glmnet)
+    library(sdwd)
+    #library(nnet)
+  }
+  #self-made functions
+  if(1){
+    #総度数が閾値を下回る変数項目を一つの変数項目に合併する関数
+    shorten<-function(x, threshold=0){
+      if(threshold==0){
+        return(x)
+      }else{
+        n<-which(colSums(x)>=threshold)
+        return(cbind(x[,n], Others=rowSums(x[,-n])))
+      }
+    }
+    #与えられた集計度数データを相対度数データに変換する。ただし各行の和が1
+    proportionate<-function(x){
+      return(x/rowSums(x))
+    }
+    #要素が文字列であるベクトル同士を比較し、正解率とF1値を要素とするベクトルをそれぞれ出力する
+    operator<-function(x, lab){
+      #generate 2 vectors for storaging
+      len<-ncol(x)
+      accu<-vector(length = len)
+      F1V <-vector(length = len)
+      for(i in 1:len){
+        tab<-table(x[,i], lab)
+        accu[i]<-sum(diag(tab))/sum(tab)
+        num_factors<-nrow(tab)
+        sub_res<-vector(length=num_factors)
+        for(j in 1:num_factors){
+          sub_table<-matrix(c(tab[j,j], sum(tab[j,-j]), sum(tab[-j,j]), sum(tab[-j,-j])), byrow=TRUE, nrow=2)
+          sub_precision<-sub_table[1,1]/sum(sub_table[1,])
+          sub_recall<-sub_table[1,1]/sum(sub_table[,1])
+          sub_res[j]<-2*sub_precision*sub_recall/(sub_precision+sub_recall)
+        }
+        F1V[i]<-mean(sub_res)
+      }
+      list(accuracy=accu, F1V=F1V)
+    }
+    #同じベクトルを指定した回数横に重ねる
+    twice<-function(x, times=2){
+      result<-x
+      for(i in 1:(times-1)){
+        result<-rbind(result, x)
+      }
+      return(result)
+    }
+    #1から、等差が1である等差数列から、指定した数番目の指定した長さのベクトルを切り出す
+    cut_out<-function(x, length = 40){
+      #x can be a integer or a vector
+      len<-length(x)
+      res<-vector()
+      for(i in 1:len){
+        res<-c(res, ((x[i]-1)*length+1):(x[i]*length))
+      }
+      return(res)
+    }
+    #とあるマトリックスから、”0”を含む列を削除し、残りの列を出力
+    exclude<-function(x){
+      #x is a matrix where may be some impurities i.e. "0" in
+      res<-which(x[1,]=="0")
+      return(x[,-res])
+    }
+    #与えられた文字列を要素とするベクトルに対して、要素同士を繋げ、間に”_”を入れる
+    stick<-function(x){
+      #x is a string vector
+      res<-paste(x, collapse="_")
+      return(res)
+    }
+    #与えられた文字列と同じ長さの公差が1である等差数列を生成する、一個目の要素は指定できる、デフォルトは0：関数as.numericのヘマを片付ける
+    replacement<-function(x){
+      len<-length(x)
+      factors_names<-unique(x)
+      factors_num<-length(factors_names)
+      res<-vector(length = len)
+      for(i in 1:len){
+        res[i]<-which(factors_names==x[i])-1
+      }
+      return(res)
+    }
+  }
+  #与えられたマトリックスに対して、NaNである要素を全て指定の値に置き換える、デフォルトは0
+  no_NaN<-function(x,y=0){
+#x is a matrix may contains NaN
+x[is.nan(x)]<-y
+return(x)
+  } 
+  #set-up
+  if(1){
+    nc<-ncol(x)
+    True_Variables<-colnames(x)
+    Dummy_Variables<-paste0("V_", 1:nc)
+    colnames(x)<-Dummy_Variables
+    candidates<-c("村上春樹", "村上龍", "東野圭吾", "湊かなえ", "貴志祐介")
+    enumeration_candidates<-t(combn(candidates, m=pair))
+    author_labels<-rep(candidates, each=40)
+    enumeration<-t(combn(c(1:5), m=pair))
+    nr_enumeration<-nrow(enumeration)
+    total_res_accuracy <- matrix(0, nr_enumeration, 10)
+    total_res_f1Value <- matrix(0, nr_enumeration, 10)
+    rownames(total_res_accuracy)<-apply(enumeration_candidates, 1, stick)
+    rownames(total_res_f1Value)<-apply(enumeration_candidates, 1, stick)
+    colnames(total_res_accuracy)<-c("svm.rbfdot", "svm.polydot", "svm.vanilladot",  #3
+                                    "rf", "ada", "hdda", "lmt", "xgboost", "lasso", #6
+                                    "sdwd")                                         #1
+    colnames(total_res_f1Value)<-c("svm.rbfdot", "svm.polydot", "svm.vanilladot",  #3
+                                   "rf", "ada", "hdda", "lmt", "xgboost", "lasso", #6
+                                   "sdwd")                                         #1
+    counter<-0
+  }
+  #start to iteration
+  for(i in 1:nr_enumeration){
+    #set up for each pair
+    if(1){
+      counter<-counter+1
+      numbers<-cut_out(enumeration[i,])
+      data<-as.matrix(proportionate(shorten(x[numbers,], threshold=threshold)))
+      labels<-as.factor(author_labels[numbers])
+      data_for_LMT<-data.frame(data, labels=labels)
+      #target_for_nnet<-class.ind(labels)
+      unique_authors<-candidates[enumeration[i,]]
+      result_for_each_pair<-matrix("0", (pair*amount), 10)
+      rownames(result_for_each_pair)<-rownames(data)
+      colnames(result_for_each_pair)<-c("svm.rbfdot", "svm.polydot", "svm.vanilladot", "rf", 
+                                        "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")
+    }
+    for(j in 1:(pair*amount)){
+      set.seed(seed=seed)
+      #modeling
+      if(1){
+        model.svm.rbfdot<-ksvm(x=data[-j,], y=labels[-j], scaled=FALSE)
+        model.svm.polydot<-ksvm(x=data[-j,], y=labels[-j], scaled=FALSE, kernel="polydot")
+        model.svm.vanilladot<-ksvm(x=data[-j,], y=labels[-j], scaled=FALSE, kernel="vanilladot")
+        model.rf<-randomForest(x=data[-j,], y=labels[-j], importance=FALSE)
+        if(pair==2){
+          model.ada<-ada(x=data[-j,], y=labels[-j], iter=100)
+        }
+        model.hdda<-hdda(data=data[-j,], cls=labels[-j], model="ALL")
+        model.lmt<-LMT(labels~., data=data_for_LMT[-j,])
+        model.xgboost<-xgboost(data=data[-j,], max_depth=6, label=replacement(labels[-j]), 
+                               objective= "multi:softmax", nrounds=2, eta=1, num_class=pair)
+        model.lasso<-glmnet(x=data[-j,], y=labels[-j], family=ifelse(pair==2,
+                                                                     "binomial", 
+                                                                     "multinomial"))
+        if(pair==2){
+          model.sdwd<-sdwd(x=data[-j,], y=labels[-j], lambda2=1)
+        }
+        #model.nnet<-nnet(x=data[-j,], y=target_for_nnet[-j,], size=2, rang=0.1, decay=5e-4, maxit=500)
+      }
+      #prediction
+      if(1){
+        result_for_each_pair[j,1]<-as.character(predict(model.svm.rbfdot, twice(x=data[j,]))[1])
+        result_for_each_pair[j,2]<-as.character(predict(model.svm.polydot, twice(x=data[j,]))[1])
+        result_for_each_pair[j,3]<-as.character(predict(model.svm.vanilladot, twice(x=data[j,]))[1])
+        result_for_each_pair[j,4]<-as.character(predict(model.rf, data[j,]))
+        if(pair==2){
+          result_for_each_pair[j,5]<-as.character(predict(model.ada, as.data.frame(twice(x=data[j,])))[1])
+        }
+        result_for_each_pair[j,6]<-as.character(predict(model.hdda, data[j,])$class)
+        result_for_each_pair[j,7]<-as.character(predict(model.lmt, as.data.frame(twice(data[j,]))))[1]
+        result_for_each_pair[j,8]<-unique_authors[predict(model.xgboost, newdata=twice(x=data[j,]))[1]+1]
+        result_for_each_pair[j,9]<-predict(model.lasso, twice(data[j,]), s=min(model.lasso$lambda), type="class")[1]
+        if(pair==2){
+          result_for_each_pair[j,10]<-ifelse(predict(model.sdwd, newx=twice(data[j,]), s=0.005)[1]==-1, unique_authors[1], unique_authors[2])
+        }
+        #result_for_pair[j,11]<-colnames(target_for_nnet)[max.col(predict(model.nnet, data[j,]))]
+      }
+    }
+    #storing
+    if(1){
+      total_res_accuracy[i,]<-operator(x=no_NaN(x=result_for_each_pair), lab=labels)[[1]]
+      total_res_f1Value[i,]<-operator(x=no_NaN(x=result_for_each_pair), lab=labels)[[2]]
+      cat(counter/nr_enumeration, "\n")
+    }
+  }
+  #output
+  if(1){
+    #total_res_accuracy<-exclude(total_res_accuracy)
+    #total_res_f1Value <-exclude(total_res_f1Value)
+    list(source_1=total_res_accuracy,
+         source_2=total_res_f1Value,
+         average_accuracy=colMeans(total_res_accuracy),
+         average_f1Values=colMeans(total_res_f1Value),
+         sd_accuracy=apply(total_res_accuracy, 2, sd),
+         sd_f1Value=apply(total_res_f1Value, 2, sd))
+  }
+}
+
+
+
+Z_2020_Pairs(material[[11]], amount=40, threshold=50, seed=0)->now
+
+
+empty<-list()
+for(i in 1:19){
+	empty[[i]]<-Z_2020_Pairs(material[[i]], amount=40, threshold=50, seed=0, pair=2)
+}
