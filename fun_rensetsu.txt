@@ -1,0 +1,32 @@
+fun_rensetsu<-function(x, n=2, straddle=FALSE){#関数_連接
+  # x is a list containing lists as its components, each component is a matrix.
+  # x 是列表对象，其每个元素亦是列表对象，其每个元素均为矩阵元素
+  output<-list()#为输出最后结果准备空list对象
+  outer_len<-length(x)#外部长度，即输入x所含元素数
+  for(i in 1:outer_len){
+    cat(i, "_\n")
+    inner_len<-length(x[[i]])#内部长度，当前元素（作品）所含元素（文节）的数量
+    fuyo_vec<-NULL#为之后删去跨句连文节作准备，存储跨了句子的的连文节编号
+    temp_list<-list()#为最终结果准备元素
+    for(j in 1:(inner_len-n+1)){
+      cat("ㄴ", j, "\n")
+      temp_matrix<-x[[i]][[j]]
+      for(k in (j+1):(j+n-1)){
+        temp_matrix<-rbind(temp_matrix, x[[i]][[k]])
+      }
+      if(!straddle){
+        if(any(temp_matrix[-nrow(temp_matrix), 1]=="。")){
+          fuyo_vec<-c(fuyo_vec, j)
+          next
+        }
+        temp_list[[j]]<-temp_matrix
+      }
+    }
+    output[[i]]<-temp_list[-fuyo_vec]
+  }
+  return(output)
+}
+
+# 関数「連接」の応用（デフォルトの設定に従ってstraddleがFになっている）
+new_total_RES_bi<-fun_rensetsu(x=new_total_RES, n=2)
+new_total_RES_tri<-fun_rensetsu(x=new_total_RES, n=3)
