@@ -1,3 +1,4 @@
+#输入一条各元素为字符串的向量，将它们按顺序粘起来之后输出。
 fun_InVec_adhere<-function(vec, sep="")
 {
   library(stringr)
@@ -15,4 +16,5 @@ fun_InVec_adhere<-function(vec, sep="")
     res<-vec
   }
   return(res)
-}
+}#对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
+#若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
