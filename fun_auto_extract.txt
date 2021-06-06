@@ -1,0 +1,15 @@
+fun_auto_extract<-function(x, round=TRUE){
+  if(length(which(names(x)=="average_accuracy"))!=0){
+    out_put_name<-paste0(deparse(quote(x)), ".csv")
+    out_put<-rbind(x$average_accuracy[-c(2,3)],
+                   x$sd_accuracy[-c(2,3)])
+    colnames(out_put)<-names(x$average_accuracy)[-c(2,3)]
+    rownames(out_put)<-c("Accu", "SD")
+    if(round=TRUE){
+      write.csv(round(out_put, 4), file=out_put_name)
+      return(round(out_put, 4))
+    }
+  }else{
+    cat("Error! This is not the expected input.")
+  }
+}
