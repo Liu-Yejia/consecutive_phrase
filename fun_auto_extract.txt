@@ -5,7 +5,7 @@ fun_auto_extract<-function(x, round=TRUE){
                    x$sd_accuracy[-c(2,3)])
     colnames(out_put)<-names(x$average_accuracy)[-c(2,3)]
     rownames(out_put)<-c("Accu", "SD")
-    if(round=TRUE){
+    if(round==TRUE){
       write.csv(round(out_put, 4), file=out_put_name)
       return(round(out_put, 4))
     }
