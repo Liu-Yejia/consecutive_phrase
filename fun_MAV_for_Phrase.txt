@@ -18,19 +18,38 @@ fun_MAV_for_Phrase<-function(x, extend_x, p)#正牌输入x，夹x于其中的扩
         x<-str_replace_all(x, "可く", "べく")
         x<-str_replace_all(x, "可し", "べし")
       }
-      Mixture<-fun_ReadIn(x=x)
       #front_padding
       if(1){
         front_string<-str_split_fixed(extend_x, x, 2)[1, 1]
         if(p==1){
-          front_padding_M<-matrix("", 1, 10)
-          front_padding_J<-matrix("", 1, 16)
+          front_padding_M<-matrix("", 2, 10)
+          front_padding_J<-matrix("", 2, 16)
         }else{
           front_Mixture<-fun_ReadIn(front_string)
-          lfp_J<-nrow(front_Mixture[[1]])# length of the Front Padding for J
-          lfp_M<-nrow(front_Mixture[[2]])# length of the Front Padding for M
-          front_padding_M<-front_Mixture[[2]][(lfp_M-1):lfp_M, ]
-          front_padding_J<-front_Mixture[[1]][(lfp_J-1):lfp_j, ]
+          if(is.null(nrow(front_Mixture[[1]]))){
+            lfp_J<-1
+          }else{
+            lfp_J<-nrow(front_Mixture[[1]])# length of the Front Padding for J
+          }
+          if(is.null(nrow(front_Mixture[[2]]))){
+            lfp_M<-1
+          }else{
+            lfp_M<-nrow(front_Mixture[[2]])# length of the Front Padding for M
+          }
+          if(lfp_J>=2){
+            front_padding_J<-front_Mixture[[1]][(lfp_J-1):lfp_J, ]
+          }else{
+            if(lfp_J==1){
+              front_padding_J<-rbind(rep("", 16), front_Mixture[[1]])
+            }
+          }
+          if(lfp_M>=2){
+            front_padding_M<-front_Mixture[[2]][(lfp_M-1):lfp_M, ]
+          }else{
+            if(lfp_M==1){
+              front_padding_M<-rbind(rep("", 10), front_Mixture[[2]])
+            }
+          }
         }
       }
       #rear_padding
@@ -41,7 +60,8 @@ fun_MAV_for_Phrase<-function(x, extend_x, p)#正牌输入x，夹x于其中的扩
           rear_padding_J<-rep("", 16) 
         }else{
           rear_Mixture<-fun_ReadIn(rear_string)
-          temp_rear_padding_M<-rear_Mixture[[2]]
+          temp_rear_padding_M<-rear_Mixture[[2]];if(is.null(nrow(temp_rear_padding_M)))temp_rear_padding_M<-t(as.matrix(temp_rear_padding_M))
+          temp_rear_padding_J<-rear_Mixture[[1]];if(is.null(nrow(temp_rear_padding_J)))temp_rear_padding_J<-t(as.matrix(temp_rear_padding_J))
           if(nrow(temp_rear_padding_M)<3){
             len_temp_rear_padding_M<-nrow(temp_rear_padding_M)
             len_replenish<-3-len_temp_rear_padding_M
@@ -49,12 +69,12 @@ fun_MAV_for_Phrase<-function(x, extend_x, p)#正牌输入x，夹x于其中的扩
           }else{
             rear_padding_M<-temp_rear_padding_M[1:3, ]
           }
-          rear_padding_J<-rear_Mixture[[1]][1, ]
+          rear_padding_J<-temp_rear_padding_J[1, ]
         }
       }
       Mixture<-fun_ReadIn(x=x)
-      net_J_Res<-Mixture[[1]]
-      net_M_Res<-Mixture[[2]]
+      net_J_Res<-Mixture[[1]]; if(is.null(nrow(net_J_Res)))net_J_Res<-t(as.matrix(net_J_Res))
+      net_M_Res<-Mixture[[2]]; if(is.null(nrow(net_M_Res)))net_M_Res<-t(as.matrix(net_M_Res))
       M_Res<-rbind(net_M_Res, rear_padding_M)
       J_Res<-rbind(net_J_Res, rear_padding_J)
       extended_M_Res<-rbind(front_padding_M, M_Res)
