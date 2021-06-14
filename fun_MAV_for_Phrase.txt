@@ -16,11 +16,13 @@ fun_MAV_for_Phrase<-function(x, extend_x, p)#正牌输入x，夹x于其中的扩
         x<-str_replace_all(x, "可からざる", "べからざる")
         x<-str_replace_all(x, "可からぬ", "べからぬ")
         x<-str_replace_all(x, "可く", "べく")
-        x<-str_replace_all(x, "可し", "べし")
+        #x<-str_replace_all(x, "可し", "べし")
       }
       #front_padding
       if(1){
-        front_string<-str_split_fixed(extend_x, x, 2)[1, 1]
+        tucked_x<-paste0("_", x, "_")
+        #front_string<-str_split_fixed(extend_x, x, 2)[1, 1]
+        front_string<-str_split_fixed(extend_x, tucked_x, 2)[1, 1]
         if(p==1){
           front_padding_M<-matrix("", 2, 10)
           front_padding_J<-matrix("", 2, 16)
@@ -54,7 +56,7 @@ fun_MAV_for_Phrase<-function(x, extend_x, p)#正牌输入x，夹x于其中的扩
       }
       #rear_padding
       if(1){
-        rear_string<-str_split_fixed(extend_x, x, 2)[1, 2]
+        rear_string<-str_split_fixed(extend_x, tucked_x, 2)[1, 2]
         if(rear_string=="畢"){
           rear_padding_M<-matrix("", 3, 10)
           rear_padding_J<-rep("", 16) 
@@ -1164,7 +1166,7 @@ fun_MAV_for_Phrase<-function(x, extend_x, p)#正牌输入x，夹x于其中的扩
             #a<-temp_0[which(str_detect(M_Res[temp_0-1, 2], "名詞|接続詞|副詞|助詞|接頭詞|形容動詞")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[し|す]).*$"))]
             a<-temp_0[which(str_detect(extended_M_Res[temp_0+1, 2], "名詞|接続詞|副詞|助詞|接頭詞|形容動詞")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[し|す]).*$"))]
             #b<-temp_0[which(M_Res[temp_0-2, 2]=="名詞"&str_detect(M_Res[temp_0-1, 1], "^へ|ばかり$")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[しす]|た[くい]|たかっ).*$"))]
-            b<-temp_0[which(extended_M_Res[temp_0, 2]=="名詞"&str_detect(extend_M_Res[temp_0+1, 1], "^へ|ばかり$")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[しす]|た[くい]|たかっ).*$"))]
+            b<-temp_0[which(extended_M_Res[temp_0, 2]=="名詞"&str_detect(extended_M_Res[temp_0+1, 1], "^へ|ばかり$")&M_Res[temp_0, 1]=="なり"&str_detect(M_Res[temp_0+1, 1], "^(?!ま[しす]|た[くい]|たかっ).*$"))]
             #c<-temp_0[which(M_Res[temp_0-1, 2]=="動詞"&M_Res[temp_0-1, 7]=="基本形")]
             c<-temp_0[which(extended_M_Res[temp_0+1, 2]=="動詞"&extended_M_Res[temp_0+1, 7]=="基本形")]
             #d<-temp_0[which(M_Res[temp_0-1, 7]=="体言接続")]
