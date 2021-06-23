@@ -4,18 +4,16 @@ fun_rensetsu<-function(x, n=2, straddle=FALSE){#関数_連接
   output<-list()#为输出最后结果准备空list对象
   outer_len<-length(x)#外部长度，即输入x所含元素数
   for(i in 1:outer_len){
-    cat(i, "_\n")
+    cat(i, "\n")
     inner_len<-length(x[[i]])#内部长度，当前元素（作品）所含元素（文节）的数量
-    fuyo_vec<-NULL#为之后删去跨句连文节作准备，存储跨了句子的的连文节编号
-    temp_list<-list()#为最终结果准备元素
-    for(j in 1:(inner_len-n+1)){
-      cat("ㄴ", j, "\n")
-      temp_matrix<-x[[i]][[j]]
-      for(k in (j+1):(j+n-1)){
-        temp_matrix<-rbind(temp_matrix, x[[i]][[k]])
-      }
-      if(!straddle){
-        if(any(temp_matrix[-nrow(temp_matrix), 1]=="。")){
+    fuyo_vec<-NULL#为之后删去跨句连文节作准备，存储跨了句子的的连文节编号（变数名为：不要（fuyo）なベクトル（vector）的缩写）
+    temp_list<-list()#为最终结果准备空列表对象
+    for(j in 1:(inner_len-n+1)){#当前元素能生成文节的n-gram的个数
+      cat("ㄴ", j, "\n")#プロセス・インジケーター（进程指示器）
+      temp_matrix<-x[[i]][[j]]#各文节n-gram中的第1文节
+      for(k in (j+1):(j+n-1))temp_matrix<-rbind(temp_matrix, x[[i]][[k]])
+      if(!straddle){#若不允许跨句连接的话
+        if(any(temp_matrix[-nrow(temp_matrix), 1]=="。")){#若在生成的文节n-gram矩阵的非最末行的第1位置上存在“。”的话
           fuyo_vec<-c(fuyo_vec, j)
           next
         }
