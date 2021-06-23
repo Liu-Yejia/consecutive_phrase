@@ -1,0 +1,143 @@
+new_bunsetsu_patterns_623<-function(string, extended_string, p)#活用形情報入り文節パターンを求める関数
+{
+  if(0){string<-x[[1]][[1]]}
+  library(stringr)
+  ##准备M_Res
+  if(1){
+    net_M_Res<-Analytic_MeCab_429(string)
+    nr_net_M_Res<-ifelse(!is.null(nrow(net_M_Res)), nrow(net_M_Res), 1)
+    M_Res<-rbind(net_M_Res, matrix("", 3, 10))
+  }
+  ##准备J_Res
+  if(0){
+    J_Res<-fun_jumanpp_R_51(input=string)
+  }
+  ##为最终结果准备矩阵FINAL
+  if(1){
+    FINAL<-matrix("", nr_net_M_Res, 3)
+    colnames(FINAL)<-c("浅层标签", "中层标签", "深层标签")
+  }
+  ##设5类品词（记号，助词，动词，形容词，助动词）在M_Res中序列号的初始值，均为0
+  if(1){
+    marks_sn<-0
+    postpositions_sn<-0
+    V_series_numbers<-0
+    A_series_numbers<-0
+    AV_series_numbers<-0
+  }
+  通し番号<-0:nr_net_M_Res
+  if(!is.null(nrow(net_M_Res))){
+    #对于标点符号词素，将其词素形式直接填入三阶粒度矩阵
+    if(any(net_M_Res[, 2]=="記号")){
+      marks_sn<-which(net_M_Res[, 2]=="記号")
+      FINAL[marks_sn, ]<-net_M_Res[marks_sn, 1]
+    }
+    #对于助词词素，进行同样的处理
+    if(any(net_M_Res[, 2]=="助詞")){
+      postpositions_sn<-which(net_M_Res[, 2]=="助詞")
+      FINAL[postpositions_sn, ]<-net_M_Res[postpositions_sn, 1]
+    }
+    #对于动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    if(any(net_M_Res[, 2]=="動詞")){
+      Res_V<-fun_find_verbs_C_V_CVS_MeCab(material=net_M_Res)#检索net适配MeCab词素解析结果
+      V_series_numbers<-Res_V$"匹配序列号"
+      V_3level_granularities<-Res_V$"三阶粒度"
+      FINAL[V_series_numbers, ]<-as.matrix(V_3level_granularities)
+    }
+    #对于形容词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    if(any(net_M_Res[, 2]=="形容詞")){
+      Res_A<-fun_Adjective_Conjugation_51(M_Res)
+      A_series_numbers<-Res_A$"トータルナンバー"
+      if(length(A_series_numbers)>=2){
+        A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[, 2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+      }else{
+        A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+      }
+      FINAL[A_series_numbers, ]<-as.matrix(A_3level_granularities)
+    }
+    #还有剩的话
+    if(length(setdiff(通し番号, sort(unique(c(marks_sn, postpositions_sn, V_series_numbers, A_series_numbers)))))!=0){
+      #对于助动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+      if(1){
+        #Res_AV<-fun_Matching_Auxiliary_Verb_compact_52(string)
+        Res_AV<-fun_MAV_for_Phrase(x=string, extend_x=extended_string, p=p)
+        AV_series_numbers<-Res_AV[[1]]
+        if(length(AV_series_numbers)!=0){
+          FINAL[AV_series_numbers, ]<-as.matrix(Res_AV[[2]])
+        }
+        #AV_series_numbers<-Res_AV[[1]];AV_3level_granularities<-Res_AV[[2]];FINAL[AV_series_numbers, ]<-AV_3level_granularities
+      }
+    }
+  }else{
+    #对于标点符号词素，将其词素形式直接填入三阶粒度矩阵
+    if(1){
+      if(any(M_Res[, 2]=="記号")){
+        marks_sn<-which(M_Res[, 2]=="記号")
+        FINAL[marks_sn, ]<-M_Res[marks_sn, 1]
+      }
+      #对于助词词素，进行同样的处理
+      if(any(M_Res[, 2]=="助詞")){
+        postpositions_sn<-which(M_Res[, 2]=="助詞")
+        FINAL[postpositions_sn, ]<-M_Res[postpositions_sn, 1]
+      }
+      #对于动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+      if(any(M_Res[, 2]=="動詞")){
+        Res_V<-fun_find_verbs_C_V_CVS_MeCab(material=M_Res)#检索net适配MeCab词素解析结果
+        V_series_numbers<-Res_V$"匹配序列号"
+        V_3level_granularities<-Res_V$"三阶粒度"
+        FINAL[V_series_numbers, ]<-as.matrix(V_3level_granularities)
+      }
+      #对于形容词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+      if(any(M_Res[, 2]=="形容詞")){
+        Res_A<-fun_Adjective_Conjugation_51(M_Res)
+        A_series_numbers<-Res_A$"トータルナンバー"
+        if(length(A_series_numbers)>=2){
+          A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[, 2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+        }else{
+          if(length(A_series_numbers)==1){
+            A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+          }else{
+            A_series_numbers<-0;A_3level_granularities<-""
+          }
+        }
+        FINAL[A_series_numbers, ]<-as.matrix(A_3level_granularities)
+      }   
+    }
+    #还有剩的话，查是否含助动词
+    if(sum(c(marks_sn, postpositions_sn, V_series_numbers, A_series_numbers))==0){
+      #对于助动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+      if(1){
+        #Res_AV<-fun_Matching_Auxiliary_Verb_compact_52(string)
+        Res_AV<-fun_MAV_for_Phrase(x=string, extend_x=extended_string, p=p)
+        AV_series_numbers<-Res_AV[[1]]
+        if(length(AV_series_numbers)!=0){
+          FINAL[AV_series_numbers, ]<-as.matrix(Res_AV[[2]])
+        }
+        #AV_series_numbers<-Res_AV[[1]];AV_3level_granularities<-Res_AV[[2]];FINAL[AV_series_numbers, ]<-AV_3level_granularities
+      }
+    }
+  }
+  #收尾工作
+  if(1){
+    processed<-sort(unique(c(marks_sn,
+                             postpositions_sn,
+                             V_series_numbers,
+                             A_series_numbers,
+                             AV_series_numbers)))#上述5类品词对应的行编号
+    still<-setdiff(1:nr_net_M_Res, processed)#上述5类品词以外的行编号
+    if(length(still)!=0){
+      #6/23添加
+      if(any(net_M_Res[still, 2]=="名詞")){
+        Noun<-still[which(net_M_Res[still, 2]=="名詞")]
+        FINAL[marks_sn, ]<-M_Res[marks_sn, 1]
+        FINAL[Noun, ]<-"名詞"
+        still<-setdiff(still, Noun)
+      }
+      if(length(still)!=0){
+        FINAL[still, 1:2]<-M_Res[still, 2]#FINAL[still, 2]<-net_M_Res[still, 2]
+        FINAL[still, 3]<-M_Res[still, 1]
+      }
+    }
+    return(FINAL)
+  }
+}
