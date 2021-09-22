@@ -1,17 +1,17 @@
 fun_Ngram<-function(x, n, straddle=FALSE){#自制函数求“连文节（連文節）”:对于输入向量，从第一个元素到最后一个元素，将相邻的n个元素联结为1个元素，并将其保存。
-    #参数x为向量（e.g., 此处x的各元素为文节）
-    #参数straddle可为T或F。F时：非末尾处含“。”或与其相当的标点符号的元素若存在，删除之。straddle的意思是“跨”，其值为T，则允许跨句子，其值为F，则禁止跨句子。
-    library(stringr)
-    xlen<-length(x)
-    nlen<-xlen-n+1
-    new_vec<-vector(0, length=nlen)
-    for(i in 1:nlen){
-      dx<-i:(i+n-1)
-      new_vec<-fun_InVec_adhere(x[dx], "")
-    }
-    if(straddld==FALSE){
-      new_vec<-new_vec[-which(str_detect(new_vec, "^.*(?<![．。！？…])$")&str_detect(new_vec, "[．。！？…]"))]
-      #删去[不以句号或准句号结尾的元素序列号&含句号或准句号的元素序列号]
-    }
-    return(new_vec)
+  #参数x为向量（e.g., 此处x的各元素为文节）
+  #参数straddle可为T或F。F时：非末尾处含“。”或与其相当的标点符号的元素若存在，删除之。straddle的意思是“跨”，其值为T，则允许跨句子，其值为F，则禁止跨句子。
+  library(stringr)
+  xlen<-length(x)
+  nlen<-xlen-n+1
+  new_vec<-rep("", length=nlen)
+  for(i in 1:nlen){
+    dx<-i:(i+n-1)
+    new_vec[i]<-fun_InVec_adhere(x[dx], "/")
   }
+  if(straddle==FALSE){
+    new_vec<-new_vec[-which(str_detect(new_vec, "^.*(?<![．。！？…])$")&str_detect(new_vec, "[．。！？…]"))]
+    #删去[不以句号或准句号结尾的元素序列号&含句号或准句号的元素序列号]
+  }
+  return(new_vec)
+}
