@@ -1,5 +1,6 @@
 Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定（dynamic threshold setting）,每次仿真中threshold根据pair的值改变，遵循公式：threshold=m*20
   if(1){
+    library(rpart)
     library(kernlab)
     library(randomForest)
     library(rpart)
