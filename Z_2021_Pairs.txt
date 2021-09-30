@@ -131,7 +131,7 @@ Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定�
       }
       #prediction
       if(1){
-        result_for_each_pair[j,1]<-as.character(predict(model.svm.rbfdot, twice(x=data[j,]))[1])
+        result_for_each_pair[j,1]<-as.character(predict(model.svm, twice(x=data[j,]))[1])
         result_for_each_pair[j,2]<-as.character(predict(model.rf, data[j,]))
         result_for_each_pair[j,3]<-predict.boosting(model.adaboost, newdata=data_for_LMT[j,])$class
         result_for_each_pair[j,4]<-as.character(predict(model.hdda, data[j,])$class)
