@@ -143,7 +143,7 @@ Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定�
     }
     #storing
     if(1){
-      total_res_accuracy[i,]<-operator_accu(x=no_NaN(x=resuslt_for_each_pair), lab=labels)[[1]]
+      total_res_accuracy[i,]<-operator_accu(x=no_NaN(x=result_for_each_pair), lab=labels)[[1]]
       cat(counter/nr_enumeration, "\n")
     }
   }
