@@ -1,9 +1,9 @@
-Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定（dynamic threshold setting）,每次仿真中threshold根据pair的值改变，遵循公式：threshold=m*20
+Z_extreme_2021_binary<-function(x, amount=40){
+  # import packages
   if(1){
     library(rpart)
     library(kernlab)
     library(randomForest)
-    library(rpart)
     library(adabag)
     library(HDclassif)
     library(RWeka)
@@ -11,146 +11,309 @@ Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定�
     library(glmnet)
     library(sdwd)
   }
-  #self-made functions
+  # define several self-made functions
   if(1){
-    #総度数が閾値を下回る変数項目を一つの変数項目に合併する関数
+    is_odd<-function(x){
+      if(x%%2==1){
+        return(1)
+      }else{
+        return(0)
+      }
+    }# judge if the input is odd
+    proportion<-function(x){
+      return(x/rowSums(x))
+    }# convert input to frequency
+    cut_out<-function(i, length = 40){
+      # extract a vector of a continuous integers of 'i'th, and the length is given by parameter 'length'
+      return(c((i-1)*length+1):(i*length))
+    }# specify the row numbers for a extreme setup
+    # 任意の一つの行ベクトル（仮にアとする）に対して、二種類の学習データの番号を生成する、すなわち：
+    #（１）アを書いた著者（a）のア以外の同ジャンル（A）の作品ともう一人の著者（b）の異なるジャンル（B）の作品からなる学習データ
+    #（２）著者（a）のジャンル（B）の作品と著者（b）のジャンル（A）の作品からなる学習データ
+    section<-function(i){
+      # section is a workflow to decide the numbers for training for each iteration, 
+      # and the output of section are two vectors containing the numbers for two situations 
+      cuneiform<-(i-1)%/%20+1# 楔(所属のブロック;界定所属区块)
+      train_case_1_num<-c(cut_out(i=cuneiform, length=20), cut_out(i=(5-cuneiform), length=20))
+      position<-which(train_case_1_num==i)
+      train_case_1_num<-train_case_1_num[-position]
+      if(cuneiform<=2){
+        second<-3-cuneiform
+        third<-5-second
+      }else{
+        second<-7-cuneiform
+        third<-5-second
+      }
+      train_case_2_num<-c(cut_out(i=second, length=20), cut_out(i=third, length=20))
+      list(case_1=train_case_1_num, case_2=train_case_2_num)
+    }
+    # 予測結果を縦に収納するマトリックスの各列と、与えられたもう一つの文字列を要素とするベクトル、すなわち、本当の著者ラベルとのマッチングを行い、
+    # リスト形式で二つの要素を結果として出力する、それぞれ、正解率とF1値
+    operator_new<-function(x, lab){
+      len<-ncol(x)
+      accu<-vector(length=len)
+      len_lab<-length(lab)
+      for(i in 1:len){
+        accu[i]<-sum(x[, i]==lab)/len_lab
+      }
+      return(accu)
+    }
     shorten<-function(x, threshold=0){
       if(threshold==0){
         return(x)
       }else{
         n<-which(colSums(x)>=threshold)
-        return(cbind(x[,n], Others=rowSums(x[,-n])))
+        return(cbind(x[, n], Others=rowSums(x[, -n])))
       }
     }
-    #与えられた集計度数データを相対度数データに変換する。ただし各行の和が1
-    proportionate<-function(x){
-      return(x/rowSums(x))
-    }
-    #要素が文字列であるベクトル同士を比較し、正解率とF1値を要素とするベクトルをそれぞれ出力する
-    operator_accu<-function(x, lab){
-      #generate 2 vectors for storaging
-      len<-ncol(x)
-      nr<-nrow(x)
-      accu<-rep(0, 10)
+    shorten_new<-function(x, threshold=0, discard=0.05){
+      if(max(x[1,])<1){#检测x是否为相对度数矩阵
+        if(discard==0){
+          return(x)
+        }else{
+          cS<-colSums(x)# 求各列和
+          cS_increase<-sort(unique(cS), decreasing=FALSE)# 按升序排列cS后去重
+          need2Bdiscarded_values<-cS_increase[1:ceiling(length(cS_increase)*discard)]# 取最小的discard%的值
+          need2Bdiscarded_sn<-NULL
+          for(i in need2Bdiscarded_values){
+            need2Bdiscarded_sn<-c(need2Bdiscarded_sn, which(cS==i))
+          }
+          return(cbind(x[, -need2Bdiscarded_sn], Others=rowSums(x[, need2Bdiscarded_sn])))
+        }
+      }else{
+        if(threshold==0){
+          return(x)
+        }else{
+          n<-which(colSums(x)>=threshold)
+          return(cbind(x[,n], Others=rowSums(x[,-n])))
+        }
+      }
+    }# 含两套次元削减方法：1. 百分比；2. 阈值；优先百分比法
+    replacement<-function(x){
+      len<-length(x)
+      factors_names<-unique(x)
+      factors_num<-length(factors_names)
+      res<-vector(length=len)
       for(i in 1:len){
-        accu[i]<-sum(x[,i]==lab)/nr
+        res[i]<-which(factors_names==x[i])-1
       }
-      return(accu)
-    }
-    #同じベクトルを指定した回数横に重ねる
+      return(res)
+    }# 输入为以文字为元素的向量，按输入顺序将文字元素转换为数字，初值为0，等差为1
     twice<-function(x, times=2){
       result<-x
       for(i in 1:(times-1)){
         result<-rbind(result, x)
       }
       return(result)
-    }
-    #1から、等差が1である等差数列から、指定した数番目の指定した長さのベクトルを切り出す
-    cut_out<-function(x, length = 40){
-      #x can be a integer or a vector
-      len<-length(x)
-      res<-vector()
-      for(i in 1:len){
-        res<-c(res, ((x[i]-1)*length+1):(x[i]*length))
-      }
-      return(res)
-    }
-    #とあるマトリックスから、”0”を含む列を削除し、残りの列を出力
-    exclude<-function(x){
-      #x is a matrix where may be some impurities i.e. "0" in
-      res<-which(x[1,]=="0")
-      return(x[,-res])
-    }
-    #与えられた文字列を要素とするベクトルに対して、要素同士を繋げ、間に”_”を入れる
-    stick<-function(x){
-      #x is a string vector
-      res<-paste(x, collapse="_")
-      return(res)
-    }
-    #与えられた文字列と同じ長さの公差が1である等差数列を生成する、一個目の要素は指定できる、デフォルトは0：関数as.numericのヘマを片付ける
-    replacement<-function(x){
-      len<-length(x)
-      factors_names<-unique(x)
-      factors_num<-length(factors_names)
-      res<-vector(length = len)
-      for(i in 1:len){
-        res[i]<-which(factors_names==x[i])-1
-      }
-      return(res)
-    }
+    }# 同じベクトルを指定した回数横に重ねる
   }
-  #与えられたマトリックスに対して、NaNである要素を全て指定の値に置き換える、デフォルトは0
-  no_NaN<-function(x,y=0){
-    #x is a matrix may contains NaN
-    x[is.nan(x)]<-y
-    return(x)
-  }
-  #set-up
+  # set-up
   if(1){
-    thre<-pair*20
-    nc<-ncol(x)
-    True_Variables<-colnames(x)
-    Dummy_Variables<-paste0("V_", 1:nc)
-    colnames(x)<-Dummy_Variables
-    candidates<-c("岩井俊二", "貴志祐介", "吉田修一", "宮部みゆき", "森見登美彦", "石田衣良", "村上春樹", "村上龍", "東野圭吾", "湊かなえ", "鈴木光司")
-    enumeration_candidates<-t(combn(candidates, m=pair))
-    author_labels<-rep(candidates, each=40)
-    enumeration<-t(combn(c(1:11), m=pair))
-    nr_enumeration<-nrow(enumeration)
-    total_res_accuracy<-matrix(0, nr_enumeration, 8)
-    rownames(total_res_accuracy)<-apply(enumeration_candidates, 1, stick)
-    colnames(total_res_accuracy)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")                                         #1
-    counter<-0
+    true_cn<-colnames(x)
+    dummy_cn<-paste0("V", 1:length(true_cn))
+    colnames(x)<-dummy_cn
+    author_vector<-c("岩井俊二", "貴志祐介", "吉田修一", "宮部みゆき", "森見登美彦",
+                     "石田衣良", "村上春樹", "村上龍", 　"東野圭吾", 　"湊かなえ", 
+                     "鈴木光司")
+    enumeration<-t(combn(c(1:11), m=2))
+    enumeration_num<-nrow(enumeration)
+    last_accu_A<-matrix(0, enumeration_num, 8)
+    last_accu_B<-matrix(0, enumeration_num, 8)
   }
-  #start to iteration
-  for(i in 1:nr_enumeration){
-    #set up for each pair
-    if(1){
-      counter<-counter+1
-      numbers<-cut_out(enumeration[i,])
-      data<-as.matrix(proportionate(shorten(x[numbers,], threshold=thre)))
-      labels<-as.factor(author_labels[numbers])
-      data_for_LMT<-data.frame(data, labels=labels)
-      unique_authors<-candidates[enumeration[i,]]
-      result_for_each_pair<-matrix("0", pair*amount, 8)
-      rownames(result_for_each_pair)<-rownames(data)
-      colnames(result_for_each_pair)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")
+  # begin to iterate
+  for(i in 1:enumeration_num){
+    # test_environment
+    if(0){
+      i<-7; j<-7
     }
-    for(j in 1:(pair*amount)){
-      set.seed(seed=seed)
-      #modeling
-      if(1){
-        model.svm<-ksvm(x=data[-j,], y=labels[-j], scaled=FALSE)
-        model.rf<-randomForest(x=data[-j,], y=labels[-j], importance=FALSE)
-        model.adaboost<-boosting(labels~., data=data_for_LMT[-j,])
-        model.hdda<-hdda(data=data[-j,], cls=labels[-j], model="ALL")
-        model.lmt<-LMT(labels~., data=data_for_LMT[-j,])
-        model.xgboost<-xgboost(data=data[-j,], label=replacement(labels[-j]), objective= "multi:softmax", nrounds=2, num_class=pair)
-        model.lasso<-glmnet(x=data[-j,], y=labels[-j], family=ifelse(pair==2, "binomial", "multinomial"))
-        if(pair==2){model.sdwd<-sdwd(x=data[-j,], y=labels[-j], lambda2=1)}
+    # set-up
+    if(1){
+      a_all<-cut_out(i=enumeration[i,1])
+      b_all<-cut_out(i=enumeration[i,2])
+      a_A<-a_all[1:20]; a_B<-a_all[21:40]
+      b_A<-b_all[1:20]; b_B<-b_all[21:40]
+      slice_number<-c(a_A, b_A, a_B, b_B)
+      unique_authors<-author_vector[enumeration[i,]]
+      label<-as.factor(rep(rep(unique_authors, each=20), 2))
+      current_data<-x[slice_number, ]
+      if(max(current_data[1, ])<1){
+        slice<-shorten_new(current_data, discard=discard)
+      }else{
+        slice<-proportion(shorten(current_data, threshold=10))
       }
-      #prediction
+      slice_for_LMT<-data.frame(slice, labels=label)
+      res_case_1<-matrix(0, 80, 8)# for genre A
+      res_case_2<-matrix(0, 80, 8)# for genre B
+      # 由于case_2的行编号与case_1相比相对固定：指向当前作品的指针移动20个单位，case_2的行编号才发生一次变化。故对于每一对作家的作品子集，在指针移动开始前建立4组模型，避免19*4=76次重复建模。
+      case_2_I   <-section(1)[[2]]
+      case_2_II <-section(21)[[2]]
+      case_2_III<-section(41)[[2]]
+      case_2_IV <-section(61)[[2]]
+      # 针对case2，建立一个双层list对象，用以存储上述4组行编号各自对应的预测模型
       if(1){
-        result_for_each_pair[j,1]<-as.character(predict(model.svm, twice(x=data[j,]))[1])
-        result_for_each_pair[j,2]<-as.character(predict(model.rf, data[j,]))
-        result_for_each_pair[j,3]<-predict.boosting(model.adaboost, newdata=data_for_LMT[j,])$class
-        result_for_each_pair[j,4]<-as.character(predict(model.hdda, data[j,])$class)
-        result_for_each_pair[j,5]<-as.character(predict(model.lmt, as.data.frame(twice(data[j,]))))[1]
-        result_for_each_pair[j,6]<-unique_authors[predict(model.xgboost, newdata=twice(x=data[j,]))[1]+1]
-        result_for_each_pair[j,7]<-predict(model.lasso, twice(data[j,]), s=min(model.lasso$lambda), type="class")[1]
-        if(pair==2){result_for_each_pair[j,8]<-ifelse(predict(model.sdwd, newx=twice(data[j,]), s=0.005)[1]==-1, unique_authors[1], unique_authors[2])}
+        models_repos<-list()
+        if(1){
+          case.2_I_model.svm<-ksvm(x=as.matrix(slice[case_2_I,]), y=label[case_2_I], scaled=FALSE)
+          case.2_I_model.rf<-randomForest(x=slice[case_2_I,], y=label[case_2_I])
+          case.2_I_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_I,])
+          case.2_I_model.hdda<-hdda(data=slice[case_2_I,], cls=label[case_2_I], model="ALL")
+          case.2_I_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_I,])
+          case.2_I_model.xgboost<-xgboost(data=as.matrix(slice[case_2_I,]), max_depth=6, label=replacement(label[case_2_I]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_I_model.lasso<-glmnet(x=slice[case_2_I,], y=label[case_2_I], family="binomial")
+          case.2_I_model.sdwd<-sdwd(x=slice[case_2_I,], y=label[case_2_I], lambda2=1)
+          models_repos_I<-list(case.2_I_model.svm,
+                               case.2_I_model.rf,
+                               case.2_I_model.adaboost,
+                               case.2_I_model.hdda,
+                               case.2_I_model.lmt,
+                               case.2_I_model.xgboost,
+                               case.2_I_model.lasso,
+                               case.2_I_model.sdwd)
+          models_repos[[1]]<-models_repos_I
+        }# for case_2_I
+        if(1){
+          case.2_II_model.svm<-ksvm(x=as.matrix(slice[case_2_II,]), y=label[case_2_II], scaled=FALSE)
+          case.2_II_model.rf<-randomForest(x=slice[case_2_II,], y=label[case_2_II])
+          case.2_II_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_II,])
+          case.2_II_model.hdda<-hdda(data=slice[case_2_II,], cls=label[case_2_II], model="ALL")
+          case.2_II_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_II,])
+          case.2_II_model.xgboost<-xgboost(data=as.matrix(slice[case_2_II,]), max_depth=6, label=replacement(label[case_2_II]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_II_model.lasso<-glmnet(x=slice[case_2_II,], y=label[case_2_II], family="binomial")
+          case.2_II_model.sdwd<-sdwd(x=slice[case_2_II,], y=label[case_2_II], lambda2=1)
+          models_repos_II<-list(case.2_II_model.svm,
+                                case.2_II_model.rf,
+                                case.2_II_model.adaboost,
+                                case.2_II_model.hdda,
+                                case.2_II_model.lmt,
+                                case.2_II_model.xgboost,
+                                case.2_II_model.lasso,
+                                case.2_II_model.sdwd)
+          models_repos[[2]]<-models_repos_II
+        }# for case_2_II
+        if(1){
+          case.2_III_model.svm<-ksvm(x=as.matrix(slice[case_2_III,]), y=label[case_2_III], scaled=FALSE)
+          case.2_III_model.rf<-randomForest(x=slice[case_2_III,], y=label[case_2_III])
+          case.2_III_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_III,])
+          case.2_III_model.hdda<-hdda(data=slice[case_2_III,], cls=label[case_2_III], model="ALL")
+          case.2_III_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_III,])
+          case.2_III_model.xgboost<-xgboost(data=as.matrix(slice[case_2_III,]), max_depth=6, label=replacement(label[case_2_III]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_III_model.lasso<-glmnet(x=slice[case_2_III,], y=label[case_2_III], family="binomial")
+          case.2_III_model.sdwd<-sdwd(x=slice[case_2_III,], y=label[case_2_III], lambda2=1)
+          models_repos_III<-list(case.2_III_model.svm,
+                                 case.2_III_model.rf,
+                                 case.2_III_model.adaboost,
+                                 case.2_III_model.hdda,
+                                 case.2_III_model.lmt,
+                                 case.2_III_model.xgboost,
+                                 case.2_III_model.lasso,
+                                 case.2_III_model.sdwd)
+          models_repos[[3]]<-models_repos_III
+        }# for case_2_III
+        if(1){
+          case.2_IV_model.svm<-ksvm(x=as.matrix(slice[case_2_IV,]), y=label[case_2_IV], scaled=FALSE)
+          case.2_IV_model.rf<-randomForest(x=slice[case_2_IV,], y=label[case_2_IV])
+          case.2_IV_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_IV,])
+          case.2_IV_model.hdda<-hdda(data=slice[case_2_IV,], cls=label[case_2_IV], model="ALL")
+          case.2_IV_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_IV,])
+          case.2_IV_model.xgboost<-xgboost(data=as.matrix(slice[case_2_IV,]), max_depth=6, label=replacement(label[case_2_IV]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_IV_model.lasso<-glmnet(x=as.matrix(slice[case_2_IV,]), y=label[case_2_IV], family="binomial")
+          case.2_IV_model.sdwd<-sdwd(x=slice[case_2_IV,], y=label[case_2_IV], lambda2=1)
+          models_repos_IV<-list(case.2_IV_model.svm,
+                                case.2_IV_model.rf,
+                                case.2_IV_model.adaboost,
+                                case.2_IV_model.hdda,
+                                case.2_IV_model.lmt,
+                                case.2_IV_model.xgboost,
+                                case.2_IV_model.lasso,
+                                case.2_IV_model.sdwd)
+          models_repos[[4]]<-models_repos_IV
+        }# for case_2_IV
+        names(models_repos)<-c("case_2_I", "case_2_II", "case_2_III", "case_2_IV")
       }
     }
-    #storing
+    # start iterating
+    for(j in 1:80){
+      # jに対応する２種類の学習データを生成する
+      case_num<-section(j)
+      case_1<-case_num[[1]]
+      # case_2<-case_num[[2]]
+      # case 1
+      if(1){
+        # case 1. modeling
+        if(1){
+          case.1_model.svm<-ksvm(x=as.matrix(slice[case_1,]), y=label[case_1], scaled=FALSE)
+          case.1_model.rf<-randomForest(x=slice[case_1,], y=label[case_1])
+          case.1_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_1,])
+          case.1_model.hdda<-hdda(data=slice[case_1,], cls=label[case_1], model="ALL")
+          case.1_model.lmt<-LMT(labels~., data=slice_for_LMT[case_1,])
+          case.1_model.xgboost<-xgboost(data=as.matrix(slice[case_1,]), max_depth=6, label=replacement(label[case_1]), objective="multi:softmax", num_class=2, nrounds=2, eta=1)
+          case.1_model.lasso<-glmnet(x=slice[case_1,], y=label[case_1], family="binomial")
+          case.1_model.sdwd<-sdwd(x=slice[case_1,], y=label[case_1], lambda2=1)
+        }
+        # case 1. prediction
+        if(1){
+          res_case_1[j,1]<-as.character(predict(case.1_model.svm, twice(x=slice[j,]))[1])
+          res_case_1[j,2]<-as.character(predict(case.1_model.rf, slice[j,]))
+          res_case_1[j,3]<-predict.boosting(case.1_model.adaboost, newdata=slice_for_LMT[j,])$class
+          res_case_1[j,4]<-unique_authors[predict(case.1_model.hdda, slice[j,])$class]
+          res_case_1[j,5]<-as.character(predict(case.1_model.lmt, slice[j,]))
+          res_case_1[j,6]<-unique_authors[predict(case.1_model.xgboost, newdata=as.matrix(twice(x=slice[j,])))[1]+1]
+          res_case_1[j,7]<-predict(case.1_model.lasso, as.matrix(twice(slice[j,])), s=min(case.1_model.lasso$lambda), type="class")[1]
+          res_case_1[j,8]<-ifelse((predict(case.1_model.sdwd, newx=twice(slice[j,]), s=0.005)[1])==-1, unique_authors[1], unique_authors[2])
+        }
+        res_case_1[j,]
+      }
+      # case 2
+      if(1){
+        cuneiform<-(i-1)%/%20+1
+        res_case_2[j,1]<-as.character(predict(models_repos[[cuneiform]][[1]], twice(x=slice[j,]))[1])
+        res_case_2[j,2]<-as.character(predict(models_repos[[cuneiform]][[2]], slice[j,]))
+        res_case_2[j,3]<-predict.boosting(models_repos[[cuneiform]][[3]], newdata=slice_for_LMT[j,])$class
+        res_case_2[j,4]<-unique_authors[predict(models_repos[[cuneiform]][[4]], slice[j,])$class]
+        res_case_2[j,5]<-as.character(predict(models_repos[[cuneiform]][[5]], slice[j,]))
+        res_case_2[j,6]<-unique_authors[predict(models_repos[[cuneiform]][[6]], newdata=as.matrix(twice(x=slice[j,])))[1]+1]
+        res_case_2[j,7]<-predict(models_repos[[cuneiform]][[7]], as.matrix(twice(slice[j,])), s=min(models_repos[[cuneiform]][[7]]$lambda), type="class")[1]
+        res_case_2[j,8]<-ifelse((predict(models_repos[[cuneiform]][[8]], newx=twice(slice[j,]), s=0.005)[1])==-1, unique_authors[1], unique_authors[2])
+      }
+    }
+    rm(models_repos)
+    # rebuild
     if(1){
-      total_res_accuracy[i,]<-operator_accu(x=no_NaN(x=result_for_each_pair), lab=labels)[[1]]
-      cat(counter/nr_enumeration, "\n")
+      Genre_A<-rbind(res_case_1[1:40,], res_case_2[1:40,])#予測先のジャンルで統一
+      Genre_B<-rbind(res_case_1[41:80,], res_case_2[41:80,])
+    }
+    # siloing
+    if(1){
+      last_accu_A[i,]<-operator_new(x=Genre_A, lab=label)
+      last_accu_B[i,]<-operator_new(x=Genre_B, lab=label)
     }
   }
-  #output
+  # end
   if(1){
-    list(source=total_res_accuracy,
-         average_accuracy=colMeans(total_res_accuracy),
-         sd_accuracy=apply(total_res_accuracy, 2, sd))
+    # for genre A
+    if(1){
+      Genre_A_average_accuracies<-colMeans(last_accu_A)
+      Genre_A_sd_accuracies<-apply(last_accu_A, 2, sd)
+      A_Accu_sd<-rbind(Genre_A_average_accuracies, Genre_A_sd_accuracies)
+      dimnames(A_Accu_sd)<-list(c("Accu", "sd"), c("svm", "rf", "adaboost", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+    }
+    # for genre B
+    if(1){
+      Genre_B_average_accuracies<-colMeans(last_accu_B)
+      Genre_B_sd_accuracies<-apply(last_accu_B, 2, sd)
+      B_Accu_sd<-rbind(Genre_B_average_accuracies, Genre_B_sd_accuracies)
+      dimnames(B_Accu_sd)<-list(c("Accu", "sd"), c("svm", "rf", "adaboost", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+    }
+    # for 2 genres
+    if(1){
+      Total_Accu_sd<-rbind((Genre_A_average_accuracies + Genre_B_average_accuracies)/2, (Genre_A_sd_accuracies + Genre_B_sd_accuracies)/2)
+      dimnames(Total_Accu_sd)<-list(c("Accu", "sd"), c("svm", "rf", "adaboost", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+    }
   }
+  list(last_accu_A=last_accu_A,
+       last_accu_B=last_accu_B,
+       A_Accu_sd=A_Accu_sd,# for genre A
+       B_Accu_sd=B_Accu_sd,# for genre B
+       Total_Accu_sd=rbind((Genre_A_average_accuracies+Genre_B_average_accuracies)/2,
+                           Total_sd<-(Genre_A_sd_accuracies+Genre_B_sd_accuracies)/2))
 }
