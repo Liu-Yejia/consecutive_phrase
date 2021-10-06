@@ -1,0 +1,180 @@
+imp_nrow<-function(x){
+  if(!is.null(nrow(x))){
+    return(nrow(x))
+  }else{
+    return(1)
+  }
+}
+
+fun_BSPattern_reproduction_improvement<-function(x, mode="M")
+{
+  #既存の文節パターンＢ特徴量ベクトルを再現。
+  #对象x为MeCab或Juman++的词素解析结果（矩阵，前者10列，后者16列）
+  #参数mode用来指定对象x为MeCab还是Juman++的词素解析结果。
+  nr<-nrow(x)#先数对象x有几行
+  SupCo<-ifelse(mode=="M", 2, 4)#上位概念（Superordinate Concept）的缩写，即词素品词大分类所在列序号
+  SubCo<-ifelse(mode=="M", 3, 6)#下位概念（Subordinate Concept）的缩写，即词素品词小分类所在列序号
+
+  cut_tail<-F
+  if(is.null(nr)){
+    x<-rbind(x, rep("", 10))  
+  }
+  Surface_chain<-x[, 1]
+  SupCo_Chain<-x[, SupCo]
+  Sup_Sub_Chain<-str_c(x[, SupCo], x[, SubCo], sep="_")
+  Sueoki_1<-which(str_detect(SupCo_Chain, "^(助詞|記号)$"))#変数名の通り，表層形態素のままで（据え置き）
+  Sueoki_2<-which(str_detect(Sup_Sub_Chain, "^(名詞_非自立|連体詞_\\*|助動詞_\\*)$"))
+  Sueoki<-union(Sueoki_1, Sueoki_2)
+  SupCo_Chain[Sueoki]<-Surface_chain[Sueoki]
+  res<-fun_InVec_adhere(SupCo_Chain, sep="_")
+  return(res)
+}
+
+library(stringr)
+#文節に分ける
+if(1){
+  test_string<-"仲良しの友人たち、10人ぐらいでバーベキュー。みんなで鉄板を囲んで近い距離でマスクを外し飲食しながら楽しく会話。数日後、次々と友人の感染が判明し、クラスターになってしまいました。"
+  test_string_2<-"感染対策を呼び掛けるのは良いことだと思います。ただワクチンの効果が薄れるに関しては、何がどうなってダメなのか。それが分からないで安易に引き合いに出すと、問い合わせる人が出かねないので、慎重にした方がいいと思います。"
+  res_cabocha<-test_string%>%fun_cabocha()# 入力テキストを文節に分ける
+  len_res_cabocha<-res_cabocha%>%length()# 入力テキストの長さ（文節単位）
+  len_per_bunsetsu<-rep(0, len_res_cabocha)# 文節ごとに長さを充填するために空のベクトルを作る
+  detail_bunsetsu<-list()
+  for(i in 1:len_res_cabocha){
+    detail_bunsetsu[[i]]<-res_cabocha[i]%>%Analytic_MeCab_429()
+    len_per_bunsetsu[i]<-detail_bunsetsu[[i]]%>%imp_nrow()
+    cat(i, "\n")
+  }
+}
+
+too_few<-which(len_per_bunsetsu==1)# 长度等于1的文节的编号
+too_much<-which(len_per_bunsetsu>=5)# 长度大于5的文节的编号
+
+len_per_bunsetsu[too_few]+len_per_bunsetsu[too_few+1]# 短すぎる文節の長さと直後の一文節の長さの和
+
+#文節同士を繋げる
+str_c(res_cabocha[too_few], res_cabocha[too_few+1], sep="")
+str_c(res_cabocha[too_few-1], res_cabocha[too_few], sep="")
+
+##短すぎる文節を伸張する：対象文節と前方／後方／前後のn個の形態素を繋げる
+if(1){
+  # 対象文節＋後方1形態素
+  for(i in 1:length(too_few)){cat(str_c(res_cabocha[too_few[i]], detail_bunsetsu[[too_few[i]+1]][1, 1], sep=""), "\n")}
+  # 対象文節＋後方2形態素
+  for(i in 1:length(too_few)){cat(str_c(res_cabocha[too_few[i]], str_c(detail_bunsetsu[[too_few[i]+1]][1, 1], detail_bunsetsu[[too_few[i]+1]][2, 1], sep=""), sep=""), "\n")}
+  # 対象文節＋前方1形態素
+  for(i in 1:length(too_few)){cat(str_c(detail_bunsetsu[[too_few[i]-1]][len_per_bunsetsu[too_few[i]-1], 1], res_cabocha[too_few[i]], sep=""), "\n")}
+  # 対象文節＋前方2形態素
+  for(i in 1:length(too_few)){cat(str_c(str_c(detail_bunsetsu[[too_few[i]-1]][len_per_bunsetsu[too_few[i]-1]-1, 1], detail_bunsetsu[[too_few[i]-1]][len_per_bunsetsu[too_few[i]-1], 1], sep=""), res_cabocha[too_few[i]], sep=""), "\n")}
+  ## 対象文節と前／後／前後n個の文節
+  #対象文節＋前方1文節
+  str_c(res_cabocha[too_few-1], res_cabocha[too_few], sep="")
+    #for(i in 1:length(too_few)){cat(str_c(res_cabocha[too_few[i]-1], res_cabocha[too_few[i]], sep=""), "\n")}
+  #対象文節＋後方1文節
+  str_c(res_cabocha[too_few], res_cabocha[too_few+1], sep="")
+    #for(i in 1:length(too_few)){cat(str_c(res_cabocha[too_few[i]], res_cabocha[too_few[i]+1], sep=""), "\n")}
+  #対象文節＋前後各1文節
+  str_c(res_cabocha[too_few-1], res_cabocha[too_few], res_cabocha[too_few+1], sep="")
+    #for(i in 1:length(too_few)){cat(str_c(res_cabocha[too_few[i]-1], res_cabocha[too_few[i]], res_cabocha[too_few[i]+1], sep=""), "\n")}
+}
+##長すぎる文節（一般は句の終わり）を切り分ける：対象文節に対して部分文節を取り出す
+if(1){
+  res_cabocha[too_much]
+  selected<-too_much[which(str_detect(res_cabocha[too_much], ".+[、。！？]$"))]
+  len_sel<-length(selected)
+  sub_bunsetsu<-list()
+  for(i in 1:len_sel){
+    sub_bunsetsu[[i]]<-fun_Ngram(detail_bunsetsu[[selected[i]]][, 1], 3)
+  }
+  sub_bunsetsu[[i]]
+}
+
+# 形式名詞、代名詞、連体詞の表層形を文節パターンに保留
+if(1){
+  test_string_4<-"暢気な連中は、この事件を、不意に密造酒を取り締まるときに起こる大きな衝突に類するものである、と軽く見ていた。"
+  x<-test_string_4%>%Analytic_MeCab_429()
+}# 测试环境
+fun_smart_mask_for_FN<-function(x){
+  formal_nouns_list<-c("もの",
+                       "こと",
+                       "はず",
+                       "ふし",
+                       "あいだ",
+                       "ころ",
+                       "ところ",
+                       "ため",
+                       "の",
+                       "うち",
+                       "とき",
+                       "よし",
+                       "方",
+                       "ほう")# 形式名詞リスト
+  if(is.null(nrow(x))){
+    x<-t(as.matrix(x))
+  }# 先判断x是否仅含有1行
+  target_rn<-which(x[,2]=="名詞"&x[,3]=="非自立"|x[,4]=="非自立"&x[,1]%in%formal_nouns_list)
+  if(length(target_rn)){
+    cat("Specified formal noun exists.\n")
+    x[target_rn, 2:3]<-x[target_rn, 1]
+  }
+  return(x)
+}#「形式名詞」标签屏蔽器：# I. 输入MeCab的分析结果。# II.1. 定位形式名词（又称形式体言）2. 将形式名词对应行的第2,3元素替换为该行第1元素。# III. 输出替换后的MeCab的分析结果。
+fun_smart_mask_for_DP<-function(x){
+  demonstrative_pronoun_list<-c("なに",
+                                "何",
+                                "ここ",
+                                "そこ",
+                                "あそこ",
+                                "どこ",
+                                "ここら",
+                                "そこら",
+                                "こち",
+                                "そち",
+                                "あち",
+                                "こっち",
+                                "そっち",
+                                "あっち",
+                                "どっち",
+                                "こちら",
+                                "そちら",
+                                "あちら",
+                                "どちら",
+                                "これ",
+                                "それ",
+                                "あれ",
+                                "どれ",
+                                "いずれ",
+                                "いずこ",
+                                "何処",
+                                "いつ",
+                                "何時",
+                                "何れ",
+                                "孰れ")# 指示代名詞リスト
+  if(is.null(nrow(x))){
+    x<-t(as.matrix(x))
+  }
+  a<-which(x[,3]=="代名詞"&x[,1]%in%demonstrative_pronoun_list)# 既被MeCab判定为“代名詞”，其表层词素形式（i.e., x[, 1]）也在「指示代名詞リスト」之中。名之“正牌”。
+  b<-which(x[,3]!="代名詞"&x[,1]%in%demonstrative_pronoun_list)# 未被MeCab判定为“代名詞”，其表层词素形式仍存于「指示代名詞リスト」中。
+  matched_rn<-c(a, b)# 合并a与b
+  if(length(matched_rn)){
+    cat("Specified demonstrative pronoun exists.\n")
+    x[matched_rn, 2:3]<-x[matched_rn, 1]
+  }
+  return(x)
+}#「指示代名詞」标签屏蔽器
+fun_smart_mask_for_rentaishi<-function(x){
+  if(is.null(nrow(x))){
+    x<-t(as.matrix(x))
+  }# 先判断x是否仅含1行
+  target_rn<-which(x[,2]=="連体詞")
+  if(length(target_rn)){
+    cat("Rentaishi exists.\n")
+    x[target_rn, 2:3]<-x[target_rn, 1]
+  }
+  return(x)
+}# 「代名詞」标签屏蔽器
+if(1){
+  # x<-x%>%fun_smart_mask_for_FN()
+  # x<-x%>%fun_smart_mask_for_DP()
+  # x<-x%>%fun_smart_mask_for_rentaishi()
+  (test_string_4%>%Analytic_MeCab_429()%>%fun_smart_mask_for_FN()%>%fun_smart_mask_for_DP()%>%fun_smart_mask_for_rentaishi()->y)
+}# 检测上述3自制函数
