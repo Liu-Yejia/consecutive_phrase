@@ -1,15 +1,17 @@
 Z_extreme_2021_binary<-function(x, amount=40){
   # import packages
   if(1){
-    library(rpart)
+    # library(rpart)
     library(kernlab)
     library(randomForest)
-    library(adabag)
+    # library(adabag)
     library(HDclassif)
     library(RWeka)
     library(xgboost)
     library(glmnet)
     library(sdwd)
+    library(beepr)
+    library(matrixStats)
   }
   # define several self-made functions
   if(1){
@@ -63,7 +65,11 @@ Z_extreme_2021_binary<-function(x, amount=40){
         return(x)
       }else{
         n<-which(colSums(x)>=threshold)
-        return(cbind(x[, n], Others=rowSums(x[, -n])))
+        if(ncol(x)-length(n)>=2){
+          return(cbind(x[, n], Others=rowSums(x[, -n])))
+        }else{
+          return(x)
+        }
       }
     }
     shorten_new<-function(x, threshold=0, discard=0.05){
@@ -107,6 +113,11 @@ Z_extreme_2021_binary<-function(x, amount=40){
       return(result)
     }# 同じベクトルを指定した回数横に重ねる
   }
+  # test environment
+  if(0){
+    i<-7
+    j<-77
+  }
   # set-up
   if(1){
     true_cn<-colnames(x)
@@ -117,15 +128,17 @@ Z_extreme_2021_binary<-function(x, amount=40){
                      "鈴木光司")
     enumeration<-t(combn(c(1:11), m=2))
     enumeration_num<-nrow(enumeration)
-    last_accu_A<-matrix(0, enumeration_num, 8)
-    last_accu_B<-matrix(0, enumeration_num, 8)
+    corresponding_authors_sets<-matrix(author_vector[enumeration], enumeration_num, 2)
+    last_accu_A<-matrix(0, enumeration_num, 7)
+    dimnames(last_accu_A)<-list(Sets=str_c(corresponding_authors_sets[, 1], " & ", corresponding_authors_sets[, 2]),
+                                Classifiers=c("svm", "rf", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+    last_accu_B<-matrix(0, enumeration_num, 7)
+    dimnames(last_accu_B)<-list(Sets=str_c(corresponding_authors_sets[, 1], " & ", corresponding_authors_sets[, 2]),
+                                Classifiers=c("svm", "rf", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+    
   }
   # begin to iterate
   for(i in 1:enumeration_num){
-    # test_environment
-    if(0){
-      i<-7; j<-7
-    }
     # set-up
     if(1){
       a_all<-cut_out(i=enumeration[i,1])
@@ -142,8 +155,8 @@ Z_extreme_2021_binary<-function(x, amount=40){
         slice<-proportion(shorten(current_data, threshold=10))
       }
       slice_for_LMT<-data.frame(slice, labels=label)
-      res_case_1<-matrix(0, 80, 8)# for genre A
-      res_case_2<-matrix(0, 80, 8)# for genre B
+      res_case_1<-matrix(0, 80, 7)# for genre A
+      res_case_2<-matrix(0, 80, 7)# for genre B
       # 由于case_2的行编号与case_1相比相对固定：指向当前作品的指针移动20个单位，case_2的行编号才发生一次变化。故对于每一对作家的作品子集，在指针移动开始前建立4组模型，避免19*4=76次重复建模。
       case_2_I   <-section(1)[[2]]
       case_2_II <-section(21)[[2]]
@@ -152,13 +165,15 @@ Z_extreme_2021_binary<-function(x, amount=40){
       # 针对case2，建立一个双层list对象，用以存储上述4组行编号各自对应的预测模型
       if(1){
         models_repos<-list()
+        
         if(1){
           case.2_I_model.svm<-ksvm(x=as.matrix(slice[case_2_I,]), y=label[case_2_I], scaled=FALSE)
           case.2_I_model.rf<-randomForest(x=slice[case_2_I,], y=label[case_2_I])
-          case.2_I_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_I,])
+          #case.2_I_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_I,])
           case.2_I_model.hdda<-hdda(data=slice[case_2_I,], cls=label[case_2_I], model="ALL")
           case.2_I_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_I,])
-          case.2_I_model.xgboost<-xgboost(data=as.matrix(slice[case_2_I,]), max_depth=6, label=replacement(label[case_2_I]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_I_model.xgboost<-xgboost(data=as.matrix(slice[case_2_I,]), max_depth=6, label=replacement(label[case_2_I]),
+                                          objective="multi:softmax", num_class=2, nrounds=2, eta=0.3, eval_metric="merror")
           case.2_I_model.lasso<-glmnet(x=slice[case_2_I,], y=label[case_2_I], family="binomial")
           case.2_I_model.sdwd<-sdwd(x=slice[case_2_I,], y=label[case_2_I], lambda2=1)
           models_repos_I<-list(case.2_I_model.svm,
@@ -171,13 +186,15 @@ Z_extreme_2021_binary<-function(x, amount=40){
                                case.2_I_model.sdwd)
           models_repos[[1]]<-models_repos_I
         }# for case_2_I
+        
         if(1){
           case.2_II_model.svm<-ksvm(x=as.matrix(slice[case_2_II,]), y=label[case_2_II], scaled=FALSE)
           case.2_II_model.rf<-randomForest(x=slice[case_2_II,], y=label[case_2_II])
-          case.2_II_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_II,])
+          #case.2_II_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_II,])
           case.2_II_model.hdda<-hdda(data=slice[case_2_II,], cls=label[case_2_II], model="ALL")
           case.2_II_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_II,])
-          case.2_II_model.xgboost<-xgboost(data=as.matrix(slice[case_2_II,]), max_depth=6, label=replacement(label[case_2_II]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_II_model.xgboost<-xgboost(data=as.matrix(slice[case_2_II,]), max_depth=6, label=replacement(label[case_2_II]), 
+                                           objective="multi:softmax", num_class=2, nrounds=2, eta=0.3, eval_metric="merror")
           case.2_II_model.lasso<-glmnet(x=slice[case_2_II,], y=label[case_2_II], family="binomial")
           case.2_II_model.sdwd<-sdwd(x=slice[case_2_II,], y=label[case_2_II], lambda2=1)
           models_repos_II<-list(case.2_II_model.svm,
@@ -190,13 +207,15 @@ Z_extreme_2021_binary<-function(x, amount=40){
                                 case.2_II_model.sdwd)
           models_repos[[2]]<-models_repos_II
         }# for case_2_II
+        
         if(1){
           case.2_III_model.svm<-ksvm(x=as.matrix(slice[case_2_III,]), y=label[case_2_III], scaled=FALSE)
           case.2_III_model.rf<-randomForest(x=slice[case_2_III,], y=label[case_2_III])
-          case.2_III_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_III,])
+          #case.2_III_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_III,])
           case.2_III_model.hdda<-hdda(data=slice[case_2_III,], cls=label[case_2_III], model="ALL")
           case.2_III_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_III,])
-          case.2_III_model.xgboost<-xgboost(data=as.matrix(slice[case_2_III,]), max_depth=6, label=replacement(label[case_2_III]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_III_model.xgboost<-xgboost(data=as.matrix(slice[case_2_III,]), max_depth=6, label=replacement(label[case_2_III]),
+                                            objective="multi:softmax", num_class=2, nrounds=2, eta=0.3, eval_metric="merror")
           case.2_III_model.lasso<-glmnet(x=slice[case_2_III,], y=label[case_2_III], family="binomial")
           case.2_III_model.sdwd<-sdwd(x=slice[case_2_III,], y=label[case_2_III], lambda2=1)
           models_repos_III<-list(case.2_III_model.svm,
@@ -212,10 +231,11 @@ Z_extreme_2021_binary<-function(x, amount=40){
         if(1){
           case.2_IV_model.svm<-ksvm(x=as.matrix(slice[case_2_IV,]), y=label[case_2_IV], scaled=FALSE)
           case.2_IV_model.rf<-randomForest(x=slice[case_2_IV,], y=label[case_2_IV])
-          case.2_IV_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_IV,])
+          #case.2_IV_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_2_IV,])
           case.2_IV_model.hdda<-hdda(data=slice[case_2_IV,], cls=label[case_2_IV], model="ALL")
           case.2_IV_model.lmt<-LMT(labels~., data=slice_for_LMT[case_2_IV,])
-          case.2_IV_model.xgboost<-xgboost(data=as.matrix(slice[case_2_IV,]), max_depth=6, label=replacement(label[case_2_IV]), objective="multi:softmax", num_class=2, nrounds=2, eta=0.3)
+          case.2_IV_model.xgboost<-xgboost(data=as.matrix(slice[case_2_IV,]), max_depth=6, label=replacement(label[case_2_IV]),
+                                           objective="multi:softmax", num_class=2, nrounds=2, eta=0.3, eval_metric="merror")
           case.2_IV_model.lasso<-glmnet(x=as.matrix(slice[case_2_IV,]), y=label[case_2_IV], family="binomial")
           case.2_IV_model.sdwd<-sdwd(x=slice[case_2_IV,], y=label[case_2_IV], lambda2=1)
           models_repos_IV<-list(case.2_IV_model.svm,
@@ -243,10 +263,11 @@ Z_extreme_2021_binary<-function(x, amount=40){
         if(1){
           case.1_model.svm<-ksvm(x=as.matrix(slice[case_1,]), y=label[case_1], scaled=FALSE)
           case.1_model.rf<-randomForest(x=slice[case_1,], y=label[case_1])
-          case.1_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_1,])
+          #case.1_model.adaboost<-boosting(labels~., data=slice_for_LMT[case_1,])
           case.1_model.hdda<-hdda(data=slice[case_1,], cls=label[case_1], model="ALL")
           case.1_model.lmt<-LMT(labels~., data=slice_for_LMT[case_1,])
-          case.1_model.xgboost<-xgboost(data=as.matrix(slice[case_1,]), max_depth=6, label=replacement(label[case_1]), objective="multi:softmax", num_class=2, nrounds=2, eta=1)
+          case.1_model.xgboost<-xgboost(data=as.matrix(slice[case_1,]), max_depth=6, label=replacement(label[case_1]),
+                                        objective="multi:softmax", num_class=2, nrounds=2, eta=0.3, eval_metric="merror")
           case.1_model.lasso<-glmnet(x=slice[case_1,], y=label[case_1], family="binomial")
           case.1_model.sdwd<-sdwd(x=slice[case_1,], y=label[case_1], lambda2=1)
         }
@@ -254,27 +275,27 @@ Z_extreme_2021_binary<-function(x, amount=40){
         if(1){
           res_case_1[j,1]<-as.character(predict(case.1_model.svm, twice(x=slice[j,]))[1])
           res_case_1[j,2]<-as.character(predict(case.1_model.rf, slice[j,]))
-          res_case_1[j,3]<-predict.boosting(case.1_model.adaboost, newdata=slice_for_LMT[j,])$class
-          res_case_1[j,4]<-unique_authors[predict(case.1_model.hdda, slice[j,])$class]
-          res_case_1[j,5]<-as.character(predict(case.1_model.lmt, slice[j,]))
-          res_case_1[j,6]<-unique_authors[predict(case.1_model.xgboost, newdata=as.matrix(twice(x=slice[j,])))[1]+1]
-          res_case_1[j,7]<-predict(case.1_model.lasso, as.matrix(twice(slice[j,])), s=min(case.1_model.lasso$lambda), type="class")[1]
-          res_case_1[j,8]<-ifelse((predict(case.1_model.sdwd, newx=twice(slice[j,]), s=0.005)[1])==-1, unique_authors[1], unique_authors[2])
+          #res_case_1[j,3]<-predict.boosting(case.1_model.adaboost, newdata=slice_for_LMT[j,])$class
+          res_case_1[j,3]<-unique_authors[predict(case.1_model.hdda, slice[j,])$class]
+          res_case_1[j,4]<-as.character(predict(case.1_model.lmt, slice[j,]))
+          res_case_1[j,5]<-unique_authors[predict(case.1_model.xgboost, newdata=as.matrix(twice(x=slice[j,])))[1]+1]
+          res_case_1[j,6]<-predict(case.1_model.lasso, as.matrix(twice(slice[j,])), s=min(case.1_model.lasso$lambda), type="class")[1]
+          res_case_1[j,7]<-ifelse((predict(case.1_model.sdwd, newx=twice(slice[j,]), s=0.005)[1])==-1, unique_authors[1], unique_authors[2])
         }
-        res_case_1[j,]
       }
       # case 2
       if(1){
         cuneiform<-(i-1)%/%20+1
         res_case_2[j,1]<-as.character(predict(models_repos[[cuneiform]][[1]], twice(x=slice[j,]))[1])
         res_case_2[j,2]<-as.character(predict(models_repos[[cuneiform]][[2]], slice[j,]))
-        res_case_2[j,3]<-predict.boosting(models_repos[[cuneiform]][[3]], newdata=slice_for_LMT[j,])$class
-        res_case_2[j,4]<-unique_authors[predict(models_repos[[cuneiform]][[4]], slice[j,])$class]
-        res_case_2[j,5]<-as.character(predict(models_repos[[cuneiform]][[5]], slice[j,]))
-        res_case_2[j,6]<-unique_authors[predict(models_repos[[cuneiform]][[6]], newdata=as.matrix(twice(x=slice[j,])))[1]+1]
-        res_case_2[j,7]<-predict(models_repos[[cuneiform]][[7]], as.matrix(twice(slice[j,])), s=min(models_repos[[cuneiform]][[7]]$lambda), type="class")[1]
-        res_case_2[j,8]<-ifelse((predict(models_repos[[cuneiform]][[8]], newx=twice(slice[j,]), s=0.005)[1])==-1, unique_authors[1], unique_authors[2])
+        #res_case_2[j,3]<-predict.boosting(models_repos[[cuneiform]][[3]], newdata=slice_for_LMT[j,])$class
+        res_case_2[j,3]<-unique_authors[predict(models_repos[[cuneiform]][[4]], slice[j,])$class]
+        res_case_2[j,4]<-as.character(predict(models_repos[[cuneiform]][[5]], slice[j,]))
+        res_case_2[j,5]<-unique_authors[predict(models_repos[[cuneiform]][[6]], newdata=as.matrix(twice(x=slice[j,])))[1]+1]
+        res_case_2[j,6]<-predict(models_repos[[cuneiform]][[7]], as.matrix(twice(slice[j,])), s=min(models_repos[[cuneiform]][[7]]$lambda), type="class")[1]
+        res_case_2[j,7]<-ifelse((predict(models_repos[[cuneiform]][[8]], newx=twice(slice[j,]), s=0.005)[1])==-1, unique_authors[1], unique_authors[2])
       }
+      cat(paste0("Inner: " ,j*1.25, "%\n")); beep(10)
     }
     rm(models_repos)
     # rebuild
@@ -285,8 +306,11 @@ Z_extreme_2021_binary<-function(x, amount=40){
     # siloing
     if(1){
       last_accu_A[i,]<-operator_new(x=Genre_A, lab=label)
+      last_accu_A[i,5]<-table(Genre_A[, 5], label)%>%rowMaxs%>%sum/80
       last_accu_B[i,]<-operator_new(x=Genre_B, lab=label)
+      last_accu_B[i,5]<-table(Genre_B[, 5], label)%>%rowMaxs%>%sum/80
     }
+    cat(paste0("Outer: ", round(i/enumeration_num, 4)*100, "%\n"));beep(1)
   }
   # end
   if(1){
@@ -295,19 +319,19 @@ Z_extreme_2021_binary<-function(x, amount=40){
       Genre_A_average_accuracies<-colMeans(last_accu_A)
       Genre_A_sd_accuracies<-apply(last_accu_A, 2, sd)
       A_Accu_sd<-rbind(Genre_A_average_accuracies, Genre_A_sd_accuracies)
-      dimnames(A_Accu_sd)<-list(c("Accu", "sd"), c("svm", "rf", "adaboost", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+      dimnames(A_Accu_sd)<-list(Statistics=c("Accu", "sd"),  Classifiers=c("svm", "rf", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
     }
     # for genre B
     if(1){
       Genre_B_average_accuracies<-colMeans(last_accu_B)
       Genre_B_sd_accuracies<-apply(last_accu_B, 2, sd)
       B_Accu_sd<-rbind(Genre_B_average_accuracies, Genre_B_sd_accuracies)
-      dimnames(B_Accu_sd)<-list(c("Accu", "sd"), c("svm", "rf", "adaboost", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+      dimnames(B_Accu_sd)<-list(Statistics=c("Accu", "sd"), Classifiers=c("svm", "rf", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
     }
     # for 2 genres
     if(1){
       Total_Accu_sd<-rbind((Genre_A_average_accuracies + Genre_B_average_accuracies)/2, (Genre_A_sd_accuracies + Genre_B_sd_accuracies)/2)
-      dimnames(Total_Accu_sd)<-list(c("Accu", "sd"), c("svm", "rf", "adaboost", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
+      dimnames(Total_Accu_sd)<-list(Statistics=c("Accu", "sd"), Classifiers=c("svm", "rf", "hdda", "lmt", "xgboost", "lasso", "sdwd"))
     }
   }
   list(last_accu_A=last_accu_A,
@@ -315,5 +339,5 @@ Z_extreme_2021_binary<-function(x, amount=40){
        A_Accu_sd=A_Accu_sd,# for genre A
        B_Accu_sd=B_Accu_sd,# for genre B
        Total_Accu_sd=rbind((Genre_A_average_accuracies+Genre_B_average_accuracies)/2,
-                           Total_sd<-(Genre_A_sd_accuracies+Genre_B_sd_accuracies)/2))
+                            Total_sd<-(Genre_A_sd_accuracies+Genre_B_sd_accuracies)/2))
 }
