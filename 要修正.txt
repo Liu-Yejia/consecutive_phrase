@@ -1,0 +1,175 @@
+library(data.table)
+setwd("C:/Users/JinMingzhe/Desktop/Features_difinitive_edition")
+lf<-list.files()
+len_lf<-length(lf)
+Features_Pool<-list()
+for(i in 1:len_lf){
+  temp<-fread(lf[i], data.table = FALSE, encoding = "UTF-8")
+  rn<-temp[,1]
+  temp<-temp[,-1]
+  rownames(temp)<-rn
+  Features_Pool[[i]]<-temp
+}
+names(Features_Pool)<-lf
+save(Features_Pool, file="C:/Users/JinMingzhe/Desktop/Features_Pool.rdata")
+
+Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定（dynamic threshold setting）,每次仿真中threshold根据pair的值改变，遵循公式：threshold=m*20
+  if(1){
+    library(rpart)
+    library(kernlab)
+    library(randomForest)
+    library(rpart)
+    library(adabag)
+    library(HDclassif)
+    library(RWeka)
+    library(xgboost)
+    library(glmnet)
+    library(sdwd)
+  }
+  #self-made functions
+  if(1){
+    #総度数が閾値を下回る変数項目を一つの変数項目に合併する関数
+    shorten<-function(x, threshold=0){
+      if(threshold==0){
+        return(x)
+      }else{
+        n<-which(colSums(x)>=threshold)
+        return(cbind(x[,n], Others=rowSums(x[,-n])))
+      }
+    }
+    #与えられた集計度数データを相対度数データに変換する。ただし各行の和が1
+    proportionate<-function(x){
+      return(x/rowSums(x))
+    }
+    #要素が文字列であるベクトル同士を比較し、正解率とF1値を要素とするベクトルをそれぞれ出力する
+    operator_accu<-function(x, lab){
+      #generate 2 vectors for storaging
+      len<-ncol(x)
+      nr<-nrow(x)
+      accu<-rep(0, 10)
+      for(i in 1:len){
+        accu[i]<-sum(x[,i]==lab)/nr
+      }
+      return(accu)
+    }
+    #同じベクトルを指定した回数横に重ねる
+    twice<-function(x, times=2){
+      result<-x
+      for(i in 1:(times-1)){
+        result<-rbind(result, x)
+      }
+      return(result)
+    }
+    #1から、等差が1である等差数列から、指定した数番目の指定した長さのベクトルを切り出す
+    cut_out<-function(x, length = 40){
+      #x can be a integer or a vector
+      len<-length(x)
+      res<-vector()
+      for(i in 1:len){
+        res<-c(res, ((x[i]-1)*length+1):(x[i]*length))
+      }
+      return(res)
+    }
+    #とあるマトリックスから、”0”を含む列を削除し、残りの列を出力
+    exclude<-function(x){
+      #x is a matrix where may be some impurities i.e. "0" in
+      res<-which(x[1,]=="0")
+      return(x[,-res])
+    }
+    #与えられた文字列を要素とするベクトルに対して、要素同士を繋げ、間に”_”を入れる
+    stick<-function(x){
+      #x is a string vector
+      res<-paste(x, collapse="_")
+      return(res)
+    }
+    #与えられた文字列と同じ長さの公差が1である等差数列を生成する、一個目の要素は指定できる、デフォルトは0：関数as.numericのヘマを片付ける
+    replacement<-function(x){
+      len<-length(x)
+      factors_names<-unique(x)
+      factors_num<-length(factors_names)
+      res<-vector(length = len)
+      for(i in 1:len){
+        res[i]<-which(factors_names==x[i])-1
+      }
+      return(res)
+    }
+  }
+  #与えられたマトリックスに対して、NaNである要素を全て指定の値に置き換える、デフォルトは0
+  no_NaN<-function(x,y=0){
+    #x is a matrix may contains NaN
+    x[is.nan(x)]<-y
+    return(x)
+  }
+  #set-up
+  if(1){
+    thre<-pair*20
+    nc<-ncol(x)
+    True_Variables<-colnames(x)
+    Dummy_Variables<-paste0("V_", 1:nc)
+    colnames(x)<-Dummy_Variables
+    candidates<-c("岩井俊二", "貴志祐介", "吉田修一", "宮部みゆき", "森見登美彦", "石田衣良", "村上春樹", "村上龍", "東野圭吾", "湊かなえ", "鈴木光司")
+    enumeration_candidates<-t(combn(candidates, m=pair))
+    author_labels<-rep(candidates, each=40)
+    enumeration<-t(combn(c(1:11), m=pair))
+    nr_enumeration<-nrow(enumeration)
+    total_res_accuracy<-matrix(0, nr_enumeration, 8)
+    rownames(total_res_accuracy)<-apply(enumeration_candidates, 1, stick)
+    colnames(total_res_accuracy)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")                                         #1
+    counter<-0
+  }
+  #start to iteration
+  for(i in 1:nr_enumeration){
+    #set up for each pair
+    if(1){
+      counter<-counter+1
+      numbers<-cut_out(enumeration[i,])
+      data<-as.matrix(proportionate(shorten(x[numbers,], threshold=thre)))
+      labels<-as.factor(author_labels[numbers])
+      data_for_LMT<-data.frame(data, labels=labels)
+      unique_authors<-candidates[enumeration[i,]]
+      result_for_each_pair<-matrix("0", pair*amount, 8)
+      rownames(result_for_each_pair)<-rownames(data)
+      colnames(result_for_each_pair)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")
+    }
+    for(j in 1:(pair*amount)){
+      set.seed(seed=seed)
+      #modeling
+      if(1){
+        model.svm<-ksvm(x=data[-j,], y=labels[-j], scaled=FALSE)
+        model.rf<-randomForest(x=data[-j,], y=labels[-j], importance=FALSE)
+        model.adaboost<-boosting(labels~., data=data_for_LMT[-j,])
+        model.hdda<-hdda(data=data[-j,], cls=labels[-j], model="ALL")
+        model.lmt<-LMT(labels~., data=data_for_LMT[-j,])
+        model.xgboost<-xgboost(data=data[-j,], label=replacement(labels[-j]), objective= "multi:softmax", nrounds=2, num_class=pair)
+        model.lasso<-glmnet(x=data[-j,], y=labels[-j], family=ifelse(pair==2, "binomial", "multinomial"))
+        if(pair==2){model.sdwd<-sdwd(x=data[-j,], y=labels[-j], lambda2=1)}
+      }
+      #prediction
+      if(1){
+        result_for_each_pair[j,1]<-as.character(predict(model.svm, twice(x=data[j,]))[1])
+        result_for_each_pair[j,2]<-as.character(predict(model.rf, data[j,]))
+        result_for_each_pair[j,3]<-predict.boosting(model.adaboost, newdata=data_for_LMT[j,])$class
+        result_for_each_pair[j,4]<-as.character(predict(model.hdda, data[j,])$class)
+        result_for_each_pair[j,5]<-as.character(predict(model.lmt, as.data.frame(twice(data[j,]))))[1]
+        result_for_each_pair[j,6]<-unique_authors[predict(model.xgboost, newdata=twice(x=data[j,]))[1]+1]
+        result_for_each_pair[j,7]<-predict(model.lasso, twice(data[j,]), s=min(model.lasso$lambda), type="class")[1]
+        if(pair==2){result_for_each_pair[j,8]<-ifelse(predict(model.sdwd, newx=twice(data[j,]), s=0.005)[1]==-1, unique_authors[1], unique_authors[2])}
+      }
+    }
+    #storing
+    if(1){
+      total_res_accuracy[i,]<-operator_accu(x=no_NaN(x=result_for_each_pair), lab=labels)[[1]]
+      cat(counter/nr_enumeration, "\n")
+    }
+  }
+  #output
+  if(1){
+    list(source=total_res_accuracy,
+         average_accuracy=colMeans(total_res_accuracy),
+         sd_accuracy=apply(total_res_accuracy, 2, sd))
+  }
+}
+RESULTS<-list()
+for(z in 1:19){
+  RESULTS[[z]]<-Features_Pool[[z]]%>%Z_2021_Pairs()
+}
