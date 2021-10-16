@@ -1,30 +1,16 @@
-library(data.table)
-setwd("C:/Users/JinMingzhe/Desktop/Features_difinitive_edition")
-lf<-list.files()
-len_lf<-length(lf)
-Features_Pool<-list()
-for(i in 1:len_lf){
-  temp<-fread(lf[i], data.table = FALSE, encoding = "UTF-8")
-  rn<-temp[,1]
-  temp<-temp[,-1]
-  rownames(temp)<-rn
-  Features_Pool[[i]]<-temp
-}
-names(Features_Pool)<-lf
-save(Features_Pool, file="C:/Users/JinMingzhe/Desktop/Features_Pool.rdata")
-
+# 2021_10_16
 Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定（dynamic threshold setting）,每次仿真中threshold根据pair的值改变，遵循公式：threshold=m*20
   if(1){
-    library(rpart)
     library(kernlab)
     library(randomForest)
-    library(rpart)
-    library(adabag)
     library(HDclassif)
     library(RWeka)
     library(xgboost)
     library(glmnet)
     library(sdwd)
+    library(beepr)
+    library(matrixStats)
+    library(stringr)
   }
   #self-made functions
   if(1){
@@ -93,43 +79,48 @@ Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定�
       }
       return(res)
     }
-  }
-  #与えられたマトリックスに対して、NaNである要素を全て指定の値に置き換える、デフォルトは0
-  no_NaN<-function(x,y=0){
-    #x is a matrix may contains NaN
-    x[is.nan(x)]<-y
-    return(x)
+    #与えられたマトリックスに対して、NaNである要素を全て指定の値に置き換える、デフォルトは0
+    no_NaN<-function(x,y=0){
+      #x is a matrix may contains NaN
+      x[is.nan(x)]<-y
+      return(x)
+    }
   }
   #set-up
   if(1){
-    thre<-pair*20
+    thre<-pair*5
     nc<-ncol(x)
     True_Variables<-colnames(x)
     Dummy_Variables<-paste0("V_", 1:nc)
     colnames(x)<-Dummy_Variables
-    candidates<-c("岩井俊二", "貴志祐介", "吉田修一", "宮部みゆき", "森見登美彦", "石田衣良", "村上春樹", "村上龍", "東野圭吾", "湊かなえ", "鈴木光司")
+    candidates<-c("岩井俊二", "貴志祐介", "吉田修一", "宮部みゆき", "森見登美彦",
+                  "石田衣良", "村上春樹", "村上龍",   "東野圭吾",   "湊かなえ", 
+                  "鈴木光司")
     enumeration_candidates<-t(combn(candidates, m=pair))
     author_labels<-rep(candidates, each=40)
     enumeration<-t(combn(c(1:11), m=pair))
     nr_enumeration<-nrow(enumeration)
-    total_res_accuracy<-matrix(0, nr_enumeration, 8)
+    # total_res_accuracy<-matrix(0, nr_enumeration, 8)
+    total_res_accuracy<-matrix(0, nr_enumeration, 7)
     rownames(total_res_accuracy)<-apply(enumeration_candidates, 1, stick)
-    colnames(total_res_accuracy)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")                                         #1
-    counter<-0
+    # colnames(total_res_accuracy)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")                                         #1
+    colnames(total_res_accuracy)<-c("svm", "rf", "hdda", "lmt", "xgboost", "lasso", "sdwd")
   }
   #start to iteration
   for(i in 1:nr_enumeration){
     #set up for each pair
     if(1){
-      counter<-counter+1
+      # counter<-counter+1
       numbers<-cut_out(enumeration[i,])
       data<-as.matrix(proportionate(shorten(x[numbers,], threshold=thre)))
       labels<-as.factor(author_labels[numbers])
       data_for_LMT<-data.frame(data, labels=labels)
       unique_authors<-candidates[enumeration[i,]]
-      result_for_each_pair<-matrix("0", pair*amount, 8)
+      # result_for_each_pair<-matrix("0", pair*amount, 8)
+      result_for_each_pair<-matrix("", pair*amount, 7)
       rownames(result_for_each_pair)<-rownames(data)
-      colnames(result_for_each_pair)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")
+      # colnames(result_for_each_pair)<-c("svm", "rf", "ada", "hdda", "lmt", "xgboost", "lasso", "sdwd")
+      colnames(result_for_each_pair)<-c("svm", "rf", "hdda", "lmt", "xgboost", "lasso", "sdwd")
     }
     for(j in 1:(pair*amount)){
       set.seed(seed=seed)
@@ -137,10 +128,11 @@ Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定�
       if(1){
         model.svm<-ksvm(x=data[-j,], y=labels[-j], scaled=FALSE)
         model.rf<-randomForest(x=data[-j,], y=labels[-j], importance=FALSE)
-        model.adaboost<-boosting(labels~., data=data_for_LMT[-j,])
+        # model.adaboost<-boosting(labels~., data=data_for_LMT[-j,])
         model.hdda<-hdda(data=data[-j,], cls=labels[-j], model="ALL")
         model.lmt<-LMT(labels~., data=data_for_LMT[-j,])
-        model.xgboost<-xgboost(data=data[-j,], label=replacement(labels[-j]), objective= "multi:softmax", nrounds=2, num_class=pair)
+        model.xgboost<-xgboost(data=data[-j,], max_depth=6, label=replacement(labels[-j]),
+                               objective="multi:softmax", num_class=pair, nrounds=2, eta=0.3, eval_metric="merror")
         model.lasso<-glmnet(x=data[-j,], y=labels[-j], family=ifelse(pair==2, "binomial", "multinomial"))
         if(pair==2){model.sdwd<-sdwd(x=data[-j,], y=labels[-j], lambda2=1)}
       }
@@ -148,18 +140,25 @@ Z_2021_Pairs<-function(x, pair=2, amount=40, seed=0){#引入动态阈值设定�
       if(1){
         result_for_each_pair[j,1]<-as.character(predict(model.svm, twice(x=data[j,]))[1])
         result_for_each_pair[j,2]<-as.character(predict(model.rf, data[j,]))
-        result_for_each_pair[j,3]<-predict.boosting(model.adaboost, newdata=data_for_LMT[j,])$class
-        result_for_each_pair[j,4]<-as.character(predict(model.hdda, data[j,])$class)
-        result_for_each_pair[j,5]<-as.character(predict(model.lmt, as.data.frame(twice(data[j,]))))[1]
-        result_for_each_pair[j,6]<-unique_authors[predict(model.xgboost, newdata=twice(x=data[j,]))[1]+1]
-        result_for_each_pair[j,7]<-predict(model.lasso, twice(data[j,]), s=min(model.lasso$lambda), type="class")[1]
-        if(pair==2){result_for_each_pair[j,8]<-ifelse(predict(model.sdwd, newx=twice(data[j,]), s=0.005)[1]==-1, unique_authors[1], unique_authors[2])}
+        #result_for_each_pair[j,3]<-predict.boosting(model.adaboost, newdata=data_for_LMT[j,])$class
+        result_for_each_pair[j,3]<-as.character(predict(model.hdda, data[j,])$class)
+        result_for_each_pair[j,4]<-as.character(predict(model.lmt, as.data.frame(twice(data[j,]))))[1]
+        result_for_each_pair[j,5]<-unique_authors[predict(model.xgboost, newdata=twice(x=data[j,]))[1]+1]
+        result_for_each_pair[j,6]<-predict(model.lasso, twice(data[j,]), s=min(model.lasso$lambda), type="class")[1]
+        if(pair==2){result_for_each_pair[j,7]<-ifelse(predict(model.sdwd, newx=twice(data[j,]), s=0.005)[1]==-1, unique_authors[1], unique_authors[2])}
       }
+      #output progress.
+      cat(paste0("j:", j, "\t内循环:", round(2.5*j/pair, 2), "%\n"));beep(1)
     }
     #storing
     if(1){
-      total_res_accuracy[i,]<-operator_accu(x=no_NaN(x=result_for_each_pair), lab=labels)[[1]]
-      cat(counter/nr_enumeration, "\n")
+      result_for_each_pair<-no_NaN(x=result_for_each_pair)
+      total_res_accuracy[i,]<-operator_accu(x=result_for_each_pair, lab=labels)[[1]]
+      total_res_accuracy[i, 5]<-table(result_for_each_pair[, 5], labels)%>%rowMaxs%>%sum/(pair*40)
+      # last_accu_A[i, 5]<-table(result_for_each_pair[, 5], labels)%>%rowMaxs%>%sum/(pair*40)
+      # cat(i/nr_enumeration, "\n")
+      cat(paste0("i:", i, "\t外循环:", round(i/nr_enumeration*100, 2), "%\n"))
+      beep(2)
     }
   }
   #output
