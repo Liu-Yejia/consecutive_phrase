@@ -1,0 +1,194 @@
+new_bunsetsu_patterns_1019<-function(string, extended_string, p)#活用形情報入り文節パターンを求める関数
+{
+  fun_attract<-function(a, b, hanyi=2){
+    if(0){a<-the_remainder;b<-AV_series_numbers;hanyi<-1}
+    len_a<-length(a); len_b<-length(b)
+    if(len_a>=len_b){
+      for(i in 1:len_b){
+        a_trapped_ones<-a[which(abs(a-b[i])<=range & a!=b[i])]
+        len_a_trapped_ones<-length(a_trapped_ones)
+        if(len_a_trapped_ones==0){
+          break
+        }
+        if(length(a_trapped_ones)==1){
+          b[i]<-a_trapped_ones
+        }else{
+          b[i]<-a_trapped_ones[1]
+        }
+      }
+    }else{
+      for(i in 1:len_a){
+        b_matched_ones<-which(abs(b-a[i])<=range)
+        len_b_matched_ones<-length(b_matched_ones)
+        if(len_b_matched_ones==0){
+          break
+        }
+        if(length(b_matched_ones)==1){
+          b[b_matched_ones]<-a[i]
+        }else{
+          length(b_matched_ones)<-len_b_matched_ones
+          b[b_matched_ones[len_b_matched_ones]]<-a[i]
+          b[b_matched_ones[-len_b_matched_ones]]<-0
+        }
+      }
+    }
+    return(b)
+  }# 吸い寄せて、ズレを解消する。
+  if(0)#debug用
+  {
+    α<-41; β<-831->p; string<-bunsetsu[[α]][β]
+    extended_string<-extended_bunsetsu[[α]][β]
+  }
+  library(stringr)
+  ##准备M_Res
+  if(1){
+    net_M_Res<-Analytic_MeCab_429(string)
+    if(1){
+      temp<-net_M_Res; net_M_Res[, 1]<-net_M_Res[, 1]%>%str_replace_all("_", ""); net_M_Res_with_underbar<-temp; rm(temp)
+    }#准备两个net_M_Res: net_M_Res与net_M_Res_with_underbar, 二者区别在于其第1列内元素是否为带“_”的聚合词素（fusion morphemes）
+    nr_net_M_Res<-ifelse(!is.null(nrow(net_M_Res)), nrow(net_M_Res), 1)#net_M_Res的长度（单位为行）
+    if(nr_net_M_Res==1){
+      net_M_Res<-t(as.matrix(net_M_Res))
+    }#如果net_M_Res的长度（行）为1，将其転置
+    #后方padding
+    if(1){
+      tucked_string<-paste0("_", string, "_")#对当前文节左右加"_"
+      rear_string<-str_split_fixed(extend_string, tucked_string, 2)[1, 2]#后方文节
+      if(rear_string=="畢"){
+        rear_padding_M<-matrix("", 3, 10)#如果当前文节为文章中最后一个文节，在其后方rbind 3行空行
+      }else{
+        #rear_Mixture<-fun_ReadIn(rear_string)
+        rear_M_Res<-Analytic_MeCab_429(rear_string)
+        if(is.null(nrow(rear_M_Res)))rear_M_Res<-t(as.matrix(rear_M_Res))
+        if(nrow(rear_M_Res)<3){
+        #if(nrow(temp_rear_padding_M)<3){
+          #len_temp_rear_padding_M<-nrow(temp_rear_padding_M)
+          len_temp_rear_padding_M<-nrow(rear_M_Res)
+          len_replenish<-3-len_temp_rear_padding_M
+          #rear_padding_M<-rbind(temp_rear_padding_M, matrix("", len_replenish, 10))
+          rear_padding_M<-rbind(rear_M_Res, matrix("", len_replenish, 10))
+        }else{
+          #rear_padding_M<-temp_rear_padding_M[1:3, ]
+          rear_padding_M<-rear_M_Res[1:3, ]
+        }
+      }
+      M_Res<-rbind(net_M_Res, rear_padding_M)
+    }
+  }
+  ##为最终结果准备矩阵FINAL
+  if(1){
+    FINAL<-matrix("", nr_net_M_Res, 3)
+    colnames(FINAL)<-c("浅层标签", "中层标签", "深层标签")
+  }
+  # 为了将聚合后的词素（fused_morphemes）还原为原子词素（atomic_morphemes），在最右侧第4列的位置设1新列。
+  ##设5类品词（记号，助词，动词，形容词，助动词）在M_Res中序列号的初始值，均为0
+  if(1){
+    marks_sn<-0
+    postpositions_sn<-0
+    V_series_numbers<-0
+    A_series_numbers<-0
+    AV_series_numbers<-0
+  }
+  通し番号<-0:nr_net_M_Res
+  if(!is.null(nrow(net_M_Res))){
+    #对于标点符号词素，将其词素形式直接填入三阶粒度矩阵
+    if(any(net_M_Res[, 2]=="記号")){
+      marks_sn<-which(net_M_Res[, 2]=="記号")
+      FINAL[marks_sn, ]<-net_M_Res[marks_sn, 1]
+    }
+    #对于助词词素，进行同样的处理
+    if(any(net_M_Res[, 2]=="助詞")){
+      postpositions_sn<-which(net_M_Res[, 2]=="助詞")
+      FINAL[postpositions_sn, ]<-net_M_Res[postpositions_sn, 1]
+    }
+    #对于动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    if(any(net_M_Res[, 2]=="動詞")){
+      #Res_V<-fun_find_verbs_C_V_CVS_MeCab(material=net_M_Res)#检索net适配MeCab词素解析结果
+      Res_V<-fun_find_verbs_C_V_CVS_MeCab_2(material=net_M_Res)
+      V_series_numbers<-Res_V$"匹配序列号"
+      V_3level_granularities<-Res_V$"三阶粒度"
+      FINAL[V_series_numbers, ]<-as.matrix(V_3level_granularities)
+    }
+    #对于形容词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+    if(any(net_M_Res[, 2]=="形容詞")){
+      Res_A<-fun_Adjective_Conjugation_51(M_Res)
+      A_series_numbers<-Res_A$"トータルナンバー"
+      if(length(A_series_numbers)>=2){
+        A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[, 2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+      }else{
+        A_3level_granularities<-data.frame(表层标签="形容詞", 中层标签=paste("形容詞", Res_A$"活用形矩阵"[2], sep="_"), 深层标签=fun_glue(Res_A$"活用形矩阵", sep="_"))
+      }
+      FINAL[A_series_numbers, ]<-as.matrix(A_3level_granularities)
+    }
+    #对于名词词素，准备行编号和三阶粒度矩阵，自左至右分别为："名詞"、"名詞"／"形式名詞"、"名詞"／具体的な形式名詞
+    if(any(net_M_Res[, 2]=="名詞")){
+      sn_num<-which(net_M_Res[, 2]=="名詞")
+      sn_special_num<-which(net_M_Res[, 2]=="名詞*")
+      FINAL[sn_num, ]<-"名詞"
+      FINAL[sn_special_num, 1]<-"名詞"
+      FINAL[sn_special_num[which(net_M_Res[sn_special_num, 3]=="代名詞")], 2]<-"代名詞"
+      FINAL[sn_special_num[which(net_M_Res[sn_special_num, 3]=="非自立")], 2]<-"形式名詞"
+      FINAL[sn_special_num, 3]<-paste0(FINAL[sn_special_num, 2], "_", net_M_Res[sn_special_num, 1])
+    }
+    #对于形容动词，不进行细化处理。
+    if(any(net_M_Res[, 2]=="形容動詞")){
+      temp<-which(net_M_Res[, 2]=="形容動詞")
+      true_kyds<-temp[which(str_detect(net_M_Res[temp+1, 1], "に|な|で|だ|なら"))]
+      FINAL[true_kyds, ]<-"形容動詞"
+      FINAL[setdiff(temp, true_kyds), ]<-"名詞"
+    }
+    #对于副词，设两阶粒度，前2列均为“副詞”，末列为原型。
+    if(any(net_M_Res[, 2]=="副詞")){
+      temp<-which(net_M_Res[, 2]=="副詞")
+      FINAL[temp, ]<-"副詞"
+      FINAL[temp, 3]<-net_M_Res[temp, 1]
+    }
+    #对于连体词，设两阶粒度，前2列均为“連体詞”，末列为原型。
+    if(any(net_M_Res[, 2]=="連体詞")){
+      temp<-which(net_M_Res[, 2]=="連体詞")
+      FINAL[temp, ]<-"連体詞"
+      FINAL[temp, 3]<-net_M_Res[temp, 1]
+    }
+    #对于助动词“た”，由于其处理确实太棘手了，故将其拎出来单独处理。
+    if(any(net_M_Res[, 6]=="特殊・タ")){
+      TaDa_sn<-which(net_M_Res[, 6]=="特殊・タ")
+      FINAL[TaDa_sn, 1]<-"助動詞";FINAL[TaDa_sn, 2]<-"助動詞_た/だ"
+      FINAL[TaDa_sn[which(net_M_Res[TaDa_sn, 7]=="未然形")], 3]<-"助動詞_た/だ_未然形"
+      FINAL[TaDa_sn[which(net_M_Res[TaDa_sn, 7]=="仮定形")], 3]<-"助動詞_た/だ_仮定形"
+      temp<-TaDa_sn[which(net_M_Res[TaDa_sn, 7]=="基本形")]
+        end<-temp[which(str_detect(net_M_Res[temp+1, 2], "(助詞|記号)"))]
+        attributive<-setdiff(temp, end)
+      FINAL[end, 3]<-"助動詞_た/だ_終止形"
+      FINAL[attributive, 3]<-"助動詞_た/だ_連体形"
+    }
+    the_remainder<-which(FINAL[, 1]=="")#剩下的行编号
+    if(length(the_remainder)!=0){
+      if(1){
+        #对于助动词词素，准备行编号和三阶粒度矩阵，每1阶粒度对应1列
+        Res_AV<-fun_MAV_for_Text(x=string, extend_x=extend_string, p=1)
+        AV_series_numbers<-Res_AV[[1]];Details<-Res_AV[[2]]
+        if(length(AV_series_numbers)!=0){
+          if(length(union(the_remainder, AV_series_numbers))>max(length(the_remainder), length(AV_series_numbers))){ # 如果2者元素存在ズレ的话
+            AV_series_numbers<-fun_attract(a=the_remainder, b=AV_series_numbers, hanyi=1)
+          }
+          if(any(AV_series_numbers==0)){
+            zero_rn<-which(AV_series_numbers==0)
+            AV_series_numbers<-AV_series_numbers[-zero_rn]
+            Details<-Details[-zero_rn, ]
+          }
+          FINAL[AV_series_numbers, ]<-as.matrix(Details)
+        }
+      }
+    }
+  }else{stop("Error: input is too short!")}
+  #收尾工作
+  if(1){
+    unprocessed<-which(FINAL[, 1]=="")
+    if(length(unprocessed)>1){
+      FINAL[unprocessed, 1]<-net_M_Res[unprocessed, 2]
+      FINAL[unprocessed, 2]<-net_M_Res[unprocessed, 2]
+      FINAL[unprocessed, 3]<-net_M_Res[unprocessed, 2]
+    }
+    return(FINAL)
+  }
+}
