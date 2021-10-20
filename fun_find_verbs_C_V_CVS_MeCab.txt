@@ -28,19 +28,6 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
       }else{
         rownames(Conjugates_Matrix)<-objects_res[8]
       }
-      #由于MeCab的解析结果并不具有动词的“态”信息，故略去“态”矩阵
-      if(0){
-        Voices_Matrix<-matrix(0, nrow=num_objects, ncol=7)#态矩阵
-        colnames(Voices_Matrix)<-c("能動態", "可能態", "意志態", "使役態", "受動態・自発態・尊敬態", "使役受動態", "交互態")
-        rownames(Voices_Matrix)<-objects_res[,8]
-      }
-      CVS_Matrix<-matrix(0, nrow=num_objects, ncol=4)#“子母サカ”矩阵
-      colnames(CVS_Matrix)<-c("子音動詞", "母音動詞", "サ行変格活用動詞", "カ行変格活用動詞")
-      if(num_objects>1){
-        rownames(CVS_Matrix)<-objects_res[, 8]
-      }else{
-        rownames(CVS_Matrix)<-objects_res[8]
-      }
     }
     #填充<活用形>矩阵
     if(1){
@@ -54,8 +41,8 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
           series_end_form<-basic[sort(union(which(str_detect(material[basic_num+1, 2], "^(記号|助詞)$")), which(material[basic_num+1, 4]=="助動詞語幹")))]
           series_attributive<-setdiff(basic, series_end_form)
         }
-        Conjugates_Matrix[series_attributive, 4]<-1
-        Conjugates_Matrix[series_end_form, 5]<-1
+        Conjugates_Matrix[series_attributive, 5]<-1
+        Conjugates_Matrix[series_end_form, 4]<-1
         Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
         Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1
       }else{
