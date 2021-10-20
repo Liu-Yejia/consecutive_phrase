@@ -1,7 +1,6 @@
 fun_find_verbs_C_V_CVS_MeCab<-function(material)
 {#此处的material必须为自制函数fun_MeCab的输出（10列矩阵）
   #最基础的几个自制函数
-  if(0){material<-net_M_Res}
   library(stringr)
   if(1){
     #临时函数，输入为向量，输出其中非零元素的位置
@@ -15,16 +14,14 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
     }  
   }
   x<-which(material[,2]=="動詞")
-  #old_material<-material
-  material<-rbind(material, rep("", 10))
   if(length(x)!=0){
     objects_res<-material[x,]
     num_objects<-length(x)
     #生成用来存储结果的矩阵
     #由于MeCab词素解析结果的精度存在不小的问题，此自制函数将输出矩阵由3个减为2个，略去“态”矩阵。
     if(1){
-      Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=8)#活用形矩阵
-      types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形", "未知")
+      Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)#活用形矩阵
+      types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
       colnames(Conjugates_Matrix)<-types
       if(num_objects>1){
         rownames(Conjugates_Matrix)<-objects_res[, 8]
@@ -50,7 +47,6 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
       if(num_objects>1){
         Conjugates_Matrix[which(objects_res[,7]=="未然ヌ接続"), 1]<-1
         Conjugates_Matrix[which(str_detect(objects_res[,7], "^未然(?!.*ヌ接続).*$")), 2]<-1
-        #Conjugates_Matrix[which(objects_res[,7]=="連用タ接続"), 3]<-1
         Conjugates_Matrix[which(str_detect(objects_res[, 7], "^連用.+$")), 3]<-1
         if(1){
           basic<-which(objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
@@ -62,14 +58,12 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
         Conjugates_Matrix[series_end_form, 5]<-1
         Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
         Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1
-        Conjugates_Matrix[which(rowSums(Conjugates_Matrix)==0), 8]<-1
       }else{
         double_objects_res<-rbind(objects_res, objects_res)
         double_x<-rep(x, 2)
         double_Conjugates_Matrix<-rbind(Conjugates_Matrix, Conjugates_Matrix)
         double_Conjugates_Matrix[which(double_objects_res[,7]=="未然ヌ接続"), 1]<-1
         double_Conjugates_Matrix[which(str_detect(double_objects_res[,7], "^未然(?!.*ヌ接続).*$")), 2]<-1
-        #double_Conjugates_Matrix[which(double_objects_res[,7]=="連用タ接続"), 3]<-1
         double_Conjugates_Matrix[which(str_detect(double_objects_res[, 7], "^連用.+$")), 3]<-1
         if(1){
           basic<-which(double_objects_res[,7]=="基本形")#在由动词词素序列号构成的向量中的序列号
@@ -86,7 +80,7 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
       }
     }
     #填充<子母サカ>矩阵
-    if(1){
+    if(0){
       if(num_objects>1){
         CVS_Matrix[str_detect(objects_res[,6], "^一段.*$"), 1]<-1
         CVS_Matrix[str_detect(objects_res[,6], "^五段.*$"), 2]<-1
@@ -103,11 +97,7 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material)
       }
     }
     #list(匹配序列号=x, 活用形=Conjugates_Matrix, 子母サカ=CVS_Matrix)
-    if(num_objects>1){
-      基本形<-objects_res[, 8]
-    }else{
-      基本形<-objects_res[8]
-    }
+    基本形<-ifelse(num_objects>1, objects_res[, 8], objects_res[8])
     活用形<-types[apply(Conjugates_Matrix, 1, fun_0)]
     匹配序列号<-x
     三阶粒度=data.frame(浅层标签="動詞",
