@@ -1,5 +1,23 @@
 fun_MAV_for_Text<-function(x){
   library(stringr)
+  fun_limit<-function(x, l){
+    #x为长度>=2的向量
+    #l为上限，等于net_J_Res或net_M_Res的长度
+    #若x中存在大于l的元素，输出将其剔除后的x‘向量
+    #若不存在大于l的元素，将x原样输出
+    if(any(x>l)){
+      pos<-which(x>l)
+      x<-x[-pos]
+    }
+    return(x)
+  }
+  fun_remove_zero<-function(x){
+    if(any(x==0)&any(x!=0)){
+      pos<-which(x==0)
+      x<-x[-pos]
+    }
+    return(x)
+  }
   #前期准备
   if(1){
     #此处读取文本，并进行形态素解析（先Juman++，后MeCab）
