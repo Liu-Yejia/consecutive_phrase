@@ -1,177 +1,62 @@
-fun_MAV_for_Text<-function(x)
-{
-  fun_limit<-function(x, l)
-  {
-    #x为长度>=2的向量
-    #l为上限，等于net_J_Res或net_M_Res的长度
-    #若x中存在大于l的元素，输出将其剔除后的x‘向量
-    #若不存在大于l的元素，将x原样输出
-    if(any(x>l)){
-      pos<-which(x>l)
-      x<-x[-pos]
-    }
-    return(x)
-  }
-  fun_remove_zero<-function(x)
-  {
-    if(any(x==0)&any(x!=0)){
-      pos<-which(x==0)
-      x<-x[-pos]
-    }
-    return(x)
-  }
+fun_MAV_for_Text<-function(x){
   library(stringr)
   #前期准备
   if(1){
     #此处读取文本，并进行形态素解析（先Juman++，后MeCab）
-    if(1){
-      #对于“べき”一族提前就行替换。
-      if(str_detect(x, "可(き|からず|からざる|からぬ|く|し)")){
+    if(str_detect(x, "可(き|からず|からざる|からぬ|く|し)")){
         x<-str_replace_all(x, "可き", "べき")
         x<-str_replace_all(x, "可からず", "べからず")
         x<-str_replace_all(x, "可からざる", "べからざる")
         x<-str_replace_all(x, "可からぬ", "べからぬ")
         x<-str_replace_all(x, "可く", "べく")
-      }
-      front_padding_M<-matrix("", 2, 10); front_padding_J<-matrix("", 2, 16)#front_padding
-      rear_padding_M<-matrix("", 3, 10); rear_padding_J<-rep("", 16)#rear_padding
-      if(1){
-        Mixture<-fun_ReadIn(x=x)
-        net_J_Res<-Mixture[[1]]; net_M_Res<-Mixture[[2]]
-        M_Res<-rbind(net_M_Res, rear_padding_M); J_Res<-rbind(net_J_Res, rear_padding_J)
-        extended_M_Res<-rbind(front_padding_M, M_Res); extended_J_Res<-rbind(front_padding_J, J_Res)
-        mn<-nrow(net_M_Res)#M_Res中含词素的总数
-        jn<-nrow(net_J_Res)#J_Res中含词素的总数
-      }#准备M_Res和J_Res
-    }#チェック済み
-    #为最终结果（矩阵）准备列名
+      }#对于“べき”一族提前就行替换。
+    if(1){
+      front_padding_M<-matrix("", 2, 10); front_padding_J<-matrix("", 2, 16) # front_padding
+      rear_padding_M<-matrix("", 3, 10); rear_padding_J<-rep("", 16) # rear_padding
+      Mixture<-fun_ReadIn(x=x); net_J_Res<-Mixture[[1]]; net_M_Res<-Mixture[[2]]; net_M_Res[, 1]<-net_M_Res[, 1]%>%str_replace_all("_", ""); mn<-nrow(net_M_Res); jn<-nrow(net_J_Res)
+      M_Res<-rbind(net_M_Res, rear_padding_M); J_Res<-rbind(net_J_Res, rear_padding_J); extended_M_Res<-rbind(front_padding_M, M_Res); extended_J_Res<-rbind(front_padding_J, J_Res)
+    }#准备M_Res和J_Res
     if(1){
       Full_Set<-c("未然形", "連用形", "終止形", "連体形", "仮定形", "命令形")#完整的6项活用形
-      Colloquial_Style_Basic_Forms<-c("せる/らせる", "れる/られる", "ない", "ぬ", "う/よう", "まい", "たい", "たがる", "た/だ", "ようだ", "らしい", "ます", "だ", "です", "そうだ（様態）", "そうだ（伝聞）")# 16个
-      Literary_Style_Basic_Forms<-c("しめる", "む", "き", "けり", "つ", "ぬ", "たり（完了）", "たし", "べし", "まじ", "なり", "たり（断定）", "ごとし")# 13个
+      Colloquial_Style_Basic_Forms<-c("せる/らせる", "れる/られる", "ない", "ぬ", "う/よう",
+                                      "まい", "たい", "たがる", "た/だ", "ようだ",
+                                      "らしい", "ます", "だ", "です", "そうだ（様態）",
+                                      "そうだ（伝聞）")#16个
+      Literary_Style_Basic_Forms<-c("しめる", "む", "き", "けり", "つ",
+                                    "ぬ", "たり（完了）", "たし", "べし", "まじ",
+                                    "なり", "たり（断定）", "ごとし")#13个
       #口语体助动词的活用种类一览
-      Colloquial_Style_Conjugation<-c(
-        ##----
-        Full_Set,# I_せる/らせる
-        Full_Set,# II_れる/られる
-        Full_Set[-6],# III_ない
-        Full_Set[2:5],# IV_ぬ
-        Full_Set[3:4],# V_う/よう
-        Full_Set[3:4],# VI_まい
-        c(Full_Set[-6], "連用ゴザイ接続"),# VII_たい
-        Full_Set[-6],# VII_たがる
-        Full_Set[-c(1, 6)],# VIII_た/だ
-        Full_Set[-6],# IX_ようだ
-        c(Full_Set[2:5], "文語未然形", "文語連体形"),# X_らしい
-        c(Full_Set, "古い終止形・連体形"),# XI_ます
-        c(Full_Set[-6]),# XII_だ
-        c(Full_Set[1:4]),# XIII_です
-        c(Full_Set[1:5], "語幹"),# XIV_そうだ（様態）
-        c(Full_Set[1:4], "語幹")# XV_そうだ（伝聞）
-        ##----
-      )#チェック済み
+      Colloquial_Style_Conjugation<-c(Full_Set,# I_せる/らせる
+                                      Full_Set,# II_れる/られる
+                                      Full_Set[-6],# III_ない
+                                      Full_Set[2:5],# IV_ぬ
+                                      Full_Set[3:4],# V_う/よう
+                                      Full_Set[3:4],# VI_まい
+                                      c(Full_Set[-6], "連用ゴザイ接続"),# VII_たい
+                                      Full_Set[-6],# VII_たがる
+                                      Full_Set[-c(1, 6)],# VIII_た/だ
+                                      Full_Set[-6],# IX_ようだ
+                                      c(Full_Set[2:5], "文語未然形", "文語連体形"),# X_らしい
+                                      c(Full_Set, "古い終止形・連体形"),# XI_ます
+                                      c(Full_Set[-6]),# XII_だ
+                                      c(Full_Set[1:4]),# XIII_です
+                                      c(Full_Set[1:5], "語幹"),# XIV_そうだ（様態）
+                                      c(Full_Set[1:4], "語幹"))# XV_そうだ（伝聞）
       #文语体助动词的活用种类一览
-      Literary_Style_Conjugation<-c(
-        ##----
-        Full_Set,# 1_しめる
-        Full_Set[3:4],# 2_む
-        Full_Set[3:4],# 3_き
-        Full_Set[3],# 4_けり
-        Full_Set[3],# 5_つ
-        Full_Set[3],# 6_ぬ
-        Full_Set,# 7_たり（完了）
-        Full_Set[3],# 8_たし
-        Full_Set[1:4],# 9_べし
-        Full_Set[3:4],# 10_まじ
-        Full_Set[-c(2, 6)],# 11_なり
-        Full_Set,# 12_たり（断定）
-        Full_Set[2:4]# 13_ごとし
-        ##----
-      )#チェック済み
-      #此处为最终结果（矩阵）的各列命名，形式为“助动词辞书形_所属的六活用_具体表现形式”
-      Labels_Dictionary_first_half<-list(CS=c(6, 6, 5, 4, 2, 2, 6, 5, 4, 5, 6, 7, 5, 4, 6, 5),#口語体
-                                         LS=c(6, 2, 2, 1, 1, 1, 6, 1, 4, 2, 4, 6, 3))#文語体
-      Labels_Conjugation_second_half<-list(Colloquial_Style_Conjugation, Literary_Style_Conjugation)#各助动词具体的活用表现形式
-      #最终结果（矩阵）的列名：两套，其一为“助动词辞书形_六活用”，其二为具体的活用表现形式
-      ##第1套
-      part_1_CS<-rep(x=Colloquial_Style_Basic_Forms, Labels_Dictionary_first_half$CS)#复制各助动词（口语体）至适当长度
-      part_1_LS<-rep(x=Literary_Style_Basic_Forms, Labels_Dictionary_first_half$LS)#复制各助动词（文语体）至适当长度
-      Column_Names_CS<-paste(part_1_CS, Colloquial_Style_Conjugation, sep="_")#连结各助动词（口语体）与对应活用形
-      Column_Names_LS<-paste(part_1_LS, Literary_Style_Conjugation, sep="_")#连结各助动词（文语体）与对应活用形
-      Column_Names<-list(Column_Names_CS=Column_Names_CS, Column_Names_LS=Column_Names_LS)#将列名（口语体）与列名（文语体）收纳入list对象中
-      #第2套
-      if(0){
-        Labels_Concrete_Transformations<-list(CSD=c("せ", "せ", "せる", "せる", "せれ", "せろ（せよ）",
-                                                    "れ", "れ", "れる", "れる", "れれ", "れろ（れよ）",
-                                                    "なかろ", "なく（なかっ）", "ない", "ない", "なけれ",
-                                                    "ず", "ぬ（ん）", "ぬ（ん）", "ね",
-                                                    "う（よう）", "（う）（よう）",
-                                                    "まい", "（まい）", 
-                                                    "たかろ", "たかっ（たく）", "たい", "たい", "たけれ", "とう",
-                                                    "たがら（たがろ）", "たがり（たがっ）", "たがる", "たがる", "たがれ",
-                                                    "たろ／だろ", "た／だ", "た／だ", "たら／だら", 
-                                                    "ようだろ", "ようだっ（ようで・ように）", "ようだ", "ような", "ようなら", 
-                                                    "らしく（らしかっ）", "らしい", "らしい", "らしけれ", "らしから", "らしき", 
-                                                    "ませ（ましょ）", "まし", "ます", "ます", "ますれ", "ませ（まし）", "まする", 
-                                                    "だろ", "だっ（で）", "だ", "な", "なら", 
-                                                    "でしょ", "でし", "です", "です",
-                                                    "そうだろ（様態）", "そうだっ（そうで・そうに）（様態）", "そうだ（様態）", "そうな（様態）", "そうなら（様態）", "そう（様態）",
-                                                    "そうで（伝聞）", "そうだ（伝聞）", "そうな（伝聞）"),
-                                              LSD=c("しめ", "しめ", "しめる", "しめる", "しめれ", "しめろ（しめよ）",
-                                                    "む（ん）", "む（ん）",
-                                                    "き", "し",
-                                                    "けり",
-                                                    "つ",
-                                                    "ぬ",
-                                                    "たら", "たり", "たり", "たる", "たれ", "たれ",
-                                                    "たし",
-                                                    "べから", "べく（べかり）", "べし", "べき",
-                                                    "まじ", "まじき",
-                                                    "なら", "なり", "なる", "なれ",
-                                                    "たら", "たり", "たり", "たる", "たれ", "たれ",
-                                                    "ごとく", "ごとし", "ごとき"))
-        #助动词各活用形的具体表现（活用种类）
-        Labels_Concrete_Transformations<-list(CSD=c("せ(未然)", "せ(連用)", "せる(終止)", "せる(連体)", "せれ(仮定)", "せろ（せよ）(命令)",
-                                                    "れ(未然)", "れ(連用)", "れる(終止)", "れる(連体)", "れれ(仮定)", "れろ（れよ）(命令)",
-                                                    "なかろ(未然)", "なく（なかっ）(連用)", "ない(終止)", "ない(連体)", "なけれ(仮定)",
-                                                    "ず(連用)", "ぬ（ん）(終止)", "ぬ（ん）(連体)", "ね(仮定)",
-                                                    "う（よう）(終止)", "（う）（よう）(連体)",
-                                                    "まい(終止)", "（まい）(連体)", 
-                                                    "たかろ(未然)", "たかっ（たく）(連用)", "たい(終止)", "たい(連体)", "たけれ(仮定)", "とう(連用ゴザイ接続)",
-                                                    "たがら（たがろ）(未然)", "たがり（たがっ）(連用)", "たがる(終止)", "たがる(連体)", "たがれ(仮定)",
-                                                    "たろ／だろ(未然)", "た／だ(終止)", "た／だ(連体)", "たら／だら(仮定)", 
-                                                    "ようだろ(未然)", "ようだっ（ようで・ように）(連用)", "ようだ(終止)", "ような(連体)", "ようなら(仮定)", 
-                                                    "らしく（らしかっ）(連用)", "らしい(終止)", "らしい(連体)", "らしけれ(仮定)", "らしから(文語未然形)", "らしき(文語連体形)", 
-                                                    "ませ（ましょ）(未然)", "まし(連用)", "ます(終止)", "ます(連体)", "ますれ(仮定)", "ませ（まし）(命令)", "まする(古い終止形・連体形)", 
-                                                    "だろ(未然)", "だっ（で）(連用)", "だ(終止)", "な(連体)", "なら(仮定)", 
-                                                    "でしょ(未然)", "でし(連用)", "です(終止)", "です(連体)",
-                                                    "そうだろ（様態_未然）", "そうだっ（そうで・そうに）（様態_連用）", "そうだ（様態_終止）", "そうな（様態_連体）", "そうなら（様態_仮定）", "そう（様態_語幹）",
-                                                    "そうだろ（伝聞_未然）", "そうで（伝聞_連用）", "そうだ（伝聞_終止）", "そうな（伝聞_連体）", "そう（伝聞_語幹）"),
-                                              LSD=c("しめ(未然)", "しめ(連用)", "しめる(終止)", "しめる(連体)", "しめれ(仮定)", "しめろ（しめよ）(命令)",
-                                                    "む（ん）(終止)", "む（ん）(連体)",
-                                                    "き(終止)", "し(連体)",
-                                                    "けり(終止)",
-                                                    "つ(終止)",
-                                                    "ぬ(終止)",
-                                                    "たら(未然)", "たり(連用)", "たり(終止)", "たる(連体)", "たれ(仮定)", "たれ(命令)",
-                                                    "たし(終止)",
-                                                    "べから(未然)", "べく（べかり）(連用)", "べし(終止)", "べき(連体)",
-                                                    "まじ(終止)", "まじき(連体)",
-                                                    "なら(未然)", "なり(終止)", "なる(連体)", "なれ(仮定)",
-                                                    "たら(未然)", "たり(連用)", "たり(終止)", "たる(連体)", "たれ(仮定)", "たれ(命令)",
-                                                    "ごとく(連用)", "ごとし(終止)", "ごとき(連体)"))
-      }
-    }
-    #首先为各助动词准备待填充的0向量群
-    if(1){
-      C_I_J<-rep(0, 6);  C_II_J<-rep(0, 6);      C_III_J<-rep(0, 5);        C_IV_M<-rep(0, 4);   C_V_J<-rep(0, 2)
-      C_VI_J<-rep(0, 2); C_VII_M_Tai<-rep(0, 6); C_VII_M_TaGaRu<-rep(0, 5); C_VIII_J<-rep(0, 4); C_IX_J<-rep(0, 5)
-      C_X_J<-rep(0, 6);  C_XI_M<-rep(0, 7);      C_XII_M<-rep(0, 5);        C_XIII_M<-rep(0, 4); C_XIV_J<-rep(0, 6)
-      C_XV_J<-rep(0, 5)#口语体
-      L_1_J<-rep(0, 6);  L_2_M<-rep(0, 2);  L_3_M<-rep(0, 2); L_4_M<-0;         L_5_M<-0
-      L_6_M<-0;          L_7_M<-rep(0, 6);  L_8_M<-0;         L_9_J<-rep(0, 4); L_12_M<-rep(0, 2)
-      L_13_M<-rep(0, 4); L_14_M<-rep(0, 6); L_15_J<-rep(0, 3)#文语体
-    }
+      Literary_Style_Conjugation<-c(Full_Set,# 1_しめる
+                                    Full_Set[3:4],# 2_む
+                                    Full_Set[3:4],# 3_き
+                                    Full_Set[3],# 4_けり
+                                    Full_Set[3],# 5_つ
+                                    Full_Set[3],# 6_ぬ
+                                    Full_Set,# 7_たり（完了）
+                                    Full_Set[3],# 8_たし
+                                    Full_Set[1:4],# 9_べし
+                                    Full_Set[3:4],# 10_まじ
+                                    Full_Set[-c(2, 6)],# 11_なり
+                                    Full_Set,# 12_たり（断定）
+                                    Full_Set[2:4])# 13_ごとし
+    }#为最终结果（矩阵）准备列名
     #为本函数（fun_Matching_Auxiliary_Verb_compact）准备最终输出。具体形式为1个list对象，含2个元素：
     #（1）助动词词素在Res_M矩阵中的行编号
     #（2）拥有3列的矩阵，行数为输入字符串中被判定为“助动词”的词素的总数（包括映射自J_Res的）
@@ -179,7 +64,7 @@ fun_MAV_for_Text<-function(x)
     # [第2列：“助动词”标签_助动词基本形]
     # [第3列：助动词基本形_助动词活用形]
     res2compact<-list(sn=NULL, detail=NULL)#sn为series numbers的首字母缩写；detail就不用解释了
-  }#チェック済み
+  }
   #选取实际使用部分，拼接。
   if(1){
     ##口語体
@@ -304,8 +189,8 @@ fun_MAV_for_Text<-function(x)
         }
       }
       # VIII_た/だ
-      Pots_C_VIII_J<-list(0, 0, 0, 0)
-      if(0){
+      if(1){
+        Pots_C_VIII_J<-list(0, 0, 0, 0)
         ## 计算终止形与连体形的频数
         TaDa<-which(str_detect(J_Res[, 10], "タ形"))
         TaDa<-fun_limit(TaDa, jn)
@@ -327,8 +212,8 @@ fun_MAV_for_Text<-function(x)
         # 連体形：ような                   a3
         # 仮定形：ようなら                 a4_2
         ##----
-        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "よう"))%>%fun_limit(jn)
         Pots_C_IX_J<-list(0, 0, 0, 0, 0)
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "よう"))%>%fun_limit(jn)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           Matched_Morphemes_Serial_Numbers_1<-which(J_Res[, 3]=="ようだ")
           Matched_Morphemes_Serial_Numbers_2<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="")]
@@ -521,7 +406,7 @@ fun_MAV_for_Text<-function(x)
           }
         }
       }
-    }#チェック済み
+    }
     ##文語体
     if(1){
       ## 1_"しめる"
@@ -766,7 +651,7 @@ fun_MAV_for_Text<-function(x)
           d<-temp_0[which(extended_M_Res[temp_0+1, 7]=="体言接続")]
           e<-temp_0[which(str_detect(extended_M_Res[temp_0+1, 2], "名詞|接続詞|副詞|接頭詞|形容動詞")&M_Res[temp_0, 1]=="なれ"&M_Res[temp_0+1, 1]=="ば"&M_Res[temp_0+2, 1]=="こそ")]
           f<-temp_0[which(str_detect(extended_M_Res[temp_0+1, 2], "名詞|接続詞|副詞|接頭詞|形容動詞")&M_Res[temp_0, 1]=="なら"&str_detect(M_Res[temp_0+1, 1], "^ず|ぬ$"))]
-          temp_0<-sort(unique(c(a, b, c, d, e, f)))
+          temp_0<-sort(unique(c(a, b, c, d, e, f))) 
           rm(list=c("a", "b", "c", "d", "e", "f"))
         }
         temp_1<-which(str_detect(M_Res[, 1], "^.+なる$"))%>%fun_limit(mn)
@@ -802,16 +687,13 @@ fun_MAV_for_Text<-function(x)
         Pots_L_15_J[[3]]<-temp[which(str_detect(J_Res[temp, 1], "^(如|若|ごと)き$"))]
         rm(temp)
       }
-    }#チェック済み
+    }
   }
   #最后，将上述两个模块的结果整合
   if(1){
-    if(1)
-    {
-      #4/14更新
+    if(1){
       #为助动词词素准备最深层标签，即活用形
       CFT4AuxVerbs_コウゴ<-list(#此处的对象名前半部分的“CFT4AuxVerbs”为“Conjugated Forms Tag for Auxiliary Verbs”的缩写；后半部分的“コウゴ”为其字面意思，即“口語形”。
-        #----
         Full_Set,#I_せる/らせる
         Full_Set,#II_れる/られる
         Full_Set[-6],#III_ない
@@ -827,11 +709,8 @@ fun_MAV_for_Text<-function(x)
         c(Full_Set[-6]),#XII_だ
         c(Full_Set[1:4]),#XIII_です
         c(Full_Set[1:5], "語幹"),#XIV_そうだ（様態）
-        c(Full_Set[1:4], "語幹")#XV_そうだ（伝聞）
-        #----
-      )
+        c(Full_Set[1:4], "語幹"))#XV_そうだ（伝聞）
       CFT4AuxVerbs_ブンゴ<-list(#此处的对象名前半部分的“CFT4AuxVerbs”为“Conjugated Forms Tag for Auxiliary Verbs”的缩写；后半部分的“ブンゴ”为其字面意思，即“文語形”。
-        #----
         Full_Set,#1_しめる
         Full_Set[3:4],#2_む
         Full_Set[3:4],#3_き
@@ -844,22 +723,17 @@ fun_MAV_for_Text<-function(x)
         Full_Set[3:4],#10_まじ
         Full_Set[-c(2, 6)],#11_なり
         Full_Set,#12_たり（断定）
-        Full_Set[2:4]#13_ごとし
-        #----
-      )
-      #制作最深层标签
-      if(1){#最深层标签构成模式为：（助动词）基本型+活用形
+        Full_Set[2:4])#13_ごとし
+      if(1){
         Deepest_コウゴ<-list()#口语体助动词最深层标签
         Deepest_ブンゴ<-list()#文语体助动词最深层标签
         for(i in 1:16) Deepest_コウゴ[[i]]<-paste(Colloquial_Style_Basic_Forms[i], CFT4AuxVerbs_コウゴ[[i]], sep="_")
         for(i in 1:13) Deepest_ブンゴ[[i]]<-paste(Literary_Style_Basic_Forms[i], CFT4AuxVerbs_ブンゴ[[i]], sep="_")
-      }
+      }#最深层标签构成模式为：（助动词）基本型+活用形
       #将存储了词素解析结果中各助动词（口语体）活用形行编号的list对象统合为一个新的list对象。
       POTS_A<-list(Pots_C_I_J,         #1  J -
-                   #----
                    Pots_C_II_J,        #2  J -
                    Pots_C_III_J,       #3  J -
-                   #Pots_C_IV_J,       #4  J -
                    Pots_C_IV_M,        #4  M +
                    Pots_C_V_J,         #5  J -
                    Pots_C_VI_J,        #6  J -
@@ -872,15 +746,14 @@ fun_MAV_for_Text<-function(x)
                    Pots_C_XII_M,       #13 M +
                    Pots_C_XIII_M,      #14 M +
                    Pots_C_XIV_J,       #15 J -
-                   #----
                    Pots_C_XV_J)        #16 J -
-      POTS_A<-fun_wash_integer0(POTS_A);names(POTS_A)<-Colloquial_Style_Basic_Forms
-      for(i in 1:16){#为口语体助动词赋名以最深层标签
+      POTS_A<-fun_wash_integer0(POTS_A)
+      names(POTS_A)<-Colloquial_Style_Basic_Forms
+      for(i in 1:16){
         names(POTS_A[[i]])<-Deepest_コウゴ[[i]]
-      }
+      }#为口语体助动词赋名以最深层标签
       #将存储了词素解析结果中各助动词（文语体）活用形行编号的list对象统合为一个新的list对象。
       POTS_B<-list(Pots_L_1_J,         #1  J -
-                   #----
                    Pots_L_2_M,         #2  M +
                    Pots_L_3_M,         #3  M +
                    Pots_L_4_M,         #4  M +
@@ -892,24 +765,22 @@ fun_MAV_for_Text<-function(x)
                    Pots_L_12_M,        #10 M + 
                    Pots_L_13_M,        #11 M +
                    Pots_L_14_M,        #12 M +
-                   #----
                    Pots_L_15_J)        #13 J -
       names(POTS_B)<-Literary_Style_Basic_Forms
       POTS_B<-fun_wash_integer0(POTS_B)
-      for(i in 1:13){#为文语体助动词赋名以最深层标签
+      for(i in 1:13){
         names(POTS_B[[i]])<-Deepest_ブンゴ[[i]]
-      }
+      }#为文语体助动词赋名以最深层标签
       #将POTS_A与POTS_B划分为以“M”结尾的和以“J”结尾的list对象群（备注：M为主，J为辅）
-      End_with_J<-list(#POTS_A中，以“J”结尾的对象列表
-        POTS_A[[1]], POTS_A[[2]], POTS_A[[3]], POTS_A[[5]], POTS_A[[6]], POTS_A[[9]], POTS_A[[10]], POTS_A[[11]], POTS_A[[15]], POTS_A[[16]],
-        #POTS_B中，以“J”结尾的对象列表
-        POTS_B[[1]], POTS_B[[13]])#共13个list对象
+      End_with_J<-list(#共12个list对象
+        POTS_A[[1]], POTS_A[[2]], POTS_A[[3]], POTS_A[[5]], POTS_A[[6]], POTS_A[[9]], POTS_A[[10]], POTS_A[[11]], POTS_A[[15]], POTS_A[[16]],#POTS_A中，以“J”结尾的对象列表
+        POTS_B[[1]], POTS_B[[13]])#POTS_B中，以“J”结尾的对象列表。
       End_with_J<-fun_wash_integer0(End_with_J); names(End_with_J)<-c(names(POTS_A)[c(1, 2, 3, 5, 6, 9, 10, 11, 15, 16)], names(POTS_B)[c(1, 13)])
-      End_with_M<-list(#POTS_A中，以“M”结尾的对象列表
-        POTS_A[[4]], POTS_A[[7]], POTS_A[[8]], POTS_A[[12]], POTS_A[[13]], POTS_A[[14]], 
-        #POTS_B中，以“M”结尾的对象列表
-        POTS_B[[2]], POTS_B[[3]], POTS_B[[4]], POTS_B[[5]], POTS_B[[6]], POTS_B[[7]], POTS_B[[8]], POTS_B[[9]], POTS_B[[10]], POTS_B[[11]], POTS_B[[12]])#共16个list对象
-      End_with_M<-fun_wash_integer0(End_with_M); names(End_with_M)<-c(names(POTS_A)[c(4, 7, 8, 12, 13, 14)], names(POTS_B)[c(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)])
+      End_with_M<-list(#共16个list对象
+        POTS_A[[4]], POTS_A[[7]], POTS_A[[8]], POTS_A[[12]], POTS_A[[13]], POTS_A[[14]],#POTS_A中，以“M”结尾的对象列表
+        POTS_B[[2]], POTS_B[[3]], POTS_B[[4]], POTS_B[[5]], POTS_B[[6]], POTS_B[[7]], POTS_B[[8]], POTS_B[[9]], POTS_B[[10]], POTS_B[[11]], POTS_B[[12]])#POTS_B中，以“M”结尾的对象列表
+      End_with_M<-fun_wash_integer0(End_with_M)
+      names(End_with_M)<-c(names(POTS_A)[c(4, 7, 8, 12, 13, 14)], names(POTS_B)[c(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)])
       #寻找End_with_J中的非零元素，并将其
       #（1）在J_Res中的行编号、
       #（2）对应助动词的基本形（对象Pots_C/L_d_M/J的名称）、
@@ -957,7 +828,6 @@ fun_MAV_for_Text<-function(x)
       #（3）对应助动词的活用形（对象Pots_C/L_d_M/J中非零元素的坐标）
       #作为4个元素中的后3个构成1个data.frame对象
       if(1){
-        #----
         #准备4列：第1列为浅层品词标签（“助动词”）、
         #         第2列为位置，即（J_Res中的）行编号、
         #         第3列为助动词基本形、
@@ -966,7 +836,6 @@ fun_MAV_for_Text<-function(x)
         column_2_M<-NULL#行编号
         column_3_M<-NULL#助动词基本形
         column_4_M<-NULL#助动词活用形种类
-        #----
         for(i in 1:17){
           current_len<-length(End_with_M[[i]])
           for(j in 1:current_len){
@@ -983,13 +852,70 @@ fun_MAV_for_Text<-function(x)
         HIT_M<-data.frame(表层品词标签=column_1_M,
                                 行编号=column_2_M,
                                 基本形=column_3_M,
-                                活用形种类=column_4_M
-        )
+                            活用形种类=column_4_M)
       }
       nrow_J<-nrow(HIT_J)#J_Res中匹配到的词素数
       nrow_M<-nrow(HIT_M)#M_Res中匹配到的词素数
-    }#あまりエラーメッセージが出ない部分
-    #----
+    }# 制作最深层标签
+    if(1){
+      charLen_per_Mmorpheme<-net_M_Res[, 1]%>%nchar
+        EndChar_per_Mmorpheme<-cumsum(charLen_per_Mmorpheme)
+        StartChar_per_Mmorpheme<-EndChar_per_Mmorpheme-charLen_per_Mmorpheme+1
+      charLen_per_Jmorpheme<-net_J_Res[, 1]%>%nchar
+        EndChar_per_Jmorpheme<-cumsum(charLen_per_Jmorpheme)
+        StartChar_per_Jmorpheme<-EndChar_per_Jmorpheme-charLen_per_Jmorpheme+1
+      if(nrow_J!=0){
+        nrow_J<-J_wait2project_sn%>%length
+        for(i in 1:nrow_J){
+          current_J_start_pos<-StartChar_per_Jmorpheme[J_wait2project_sn[i]]
+          current_J_end_pos<-EndChar_per_Jmorpheme[J_wait2project_sn[i]]
+          if(any(StartChar_per_Mmorpheme==current_J_start_pos)){
+            # ■■■■■ J    ■■■■■ J    ■■■■■  J
+            # ■■■■■ M 或 ■■■■  M 或 ■■■■■■ M
+            temp_matched<-which(StartChar_per_Mmorpheme==current_J_start_pos)
+            if(EndChar_per_Mmorpheme[temp_matched]>=current_J_end_pos){
+              # ■■■■■ J    ■■■■■  J
+              # ■■■■■ M 或 ■■■■■■ M
+              res2compact[[1]]<-c(res2compact[[1]], temp_matched)#把映射终点词素的行编号追加到res2compact的第1要素中。
+              res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
+              cat(i, "初词素相同，J或短。\n")
+            }else{
+              # ■■■■■ J
+              # ■■■■  M
+              res2compact[[1]]<-c(res2compact[[1]], temp_matched+1)
+              res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
+              cat(i, "初词素相同，J长。\n")
+            }
+          }else{
+            if(any(EndChar_per_Mmorpheme==current_J_end_pos)){
+              # ■■■■■ J     ■■■ J
+              #  ■■■■ M 或 ■■■■ M
+              temp_matched<-which(EndChar_per_Mmorpheme==current_J_end_pos)
+              res2compact[[1]]<-c(res2compact[[1]], temp_matched)
+              res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
+              cat(i, "末词素相同。\n")
+            }else{
+              if(any(current_J_start_pos < StartChar_per_Mmorpheme & current_J_end_pos > EndChar_per_Mmorpheme)){
+                # ■■■■■ J
+                #  ■■■  M
+                temp_matched<-which(current_J_start_pos < StartChar_per_Mmorpheme & current_J_end_pos >EndChar_per_Mmorpheme)
+                len_temp_matched<-length(temp_matched)
+                res2compact[[1]]<-c(res2compact[[1]], temp_matched[len_temp_matched]+1)
+                res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
+                cat(i, "J含M。\n") 
+              }else{
+                #  ■■■  J
+                # ■■■■■ M
+                temp_matched<-which(current_J_start_pos > StartChar_per_Mmorpheme & current_J_end_pos <EndChar_per_Mmorpheme)
+                res2compact[[1]]<-c(res2compact[[1]], temp_matched)
+                res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
+                cat(i, "M含J。\n")
+              }
+            }
+          }
+        }
+      }
+    }# 用字符的位置来完成投影。
     if(nrow_J!=0){
       J_wait2project_sn<-fun_remove_zero(HIT_J[, 2])
       #----
@@ -998,7 +924,6 @@ fun_MAV_for_Text<-function(x)
       #然后，按照事先决定的3段粒度填充
       #----
       for(i in 1:nrow_J){#对HIT_J中的每一个词素
-        # i<-1
         origin<-J_Res[J_wait2project_sn[i], 1]#映射起点（J_Res中的形态素）
         origin_before<-ifelse(J_wait2project_sn[i]!=1, J_Res[J_wait2project_sn[i]-1, 1], "")#当前映射起点前方的1个词素
         origin_after<-J_Res[J_wait2project_sn[i]+1, 1]#当前映射起点后方1个词素
@@ -1036,6 +961,7 @@ fun_MAV_for_Text<-function(x)
             }
             num_HitInM<-length(perfectly_hit)#M_Resにおいてパーフェクト・ヒットした回数
             for(j in 1:num_HitInM){
+              #j<-1
               #找出映射终点的前1个和后1个词素（若存在的话）
               if(1){
                 if(perfectly_hit[j]>1&perfectly_hit[j]<mn){#（当前）映射终点位于中间（即非首尾词素）的情况
@@ -1119,8 +1045,8 @@ fun_MAV_for_Text<-function(x)
           }
           #case 4以降  
           if(!sum(res_case_1, res_case_2, res_case_3)){#若M_Res中不存在符合case 1, case 2, case 3的词素
-            res_case_4<-rep(F, mn)#即可能存在符合case 4的词素。鉴于case 4的特殊性，即M_Res中存在词素包含于映射起点中。首先准备临时向量。
-            for(y in 1:mn) res_case_4[y]<-str_detect(origin, M_Res[y, 1])
+            res_case_4<-rep(F, (mn-3))#即可能存在符合case 4的词素。鉴于case 4的特殊性，即M_Res中存在词素包含于映射起点中。首先准备临时向量。
+            for(y in 1:(mn-3)) res_case_4[y]<-str_detect(origin, M_Res[y, 1])
             if(any(res_case_4)){
               if(sum(res_case_4)==1){#M_Res中只有1个词素符合case 4
                 res2compact[[1]]<-c(res2compact[[1]], which(res_case_4)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
@@ -1144,17 +1070,19 @@ fun_MAV_for_Text<-function(x)
                   }else{
                     virtual_M_Res<-rbind(rep("", 10), M_Res)
                     virtual_middles<-middles+1
-                    virtual_connect_5<-paste0(virtual_M_Res[virtual_middles-2, 1], virtual_M_Res[virtual_middles-1, 1], virtual_M_Res[virtual_middles, 1], virtual_M_Res[virtual_middles+1, 1], virtual_M_Res[virtual_middles+2, 1])
-                    virtual_bingo<-virtual_middles[which(str_detect(virtual_connect_5, origin))][1]
+                    # virtual_connect_5<-paste0(virtual_M_Res[virtual_middles-2, 1], virtual_M_Res[virtual_middles-1, 1], virtual_M_Res[virtual_middles, 1], virtual_M_Res[virtual_middles+1, 1], virtual_M_Res[virtual_middles+2, 1])
+                    virtual_connect_3<-paste0(virtual_M_Res[virtual_middles-1, 1], virtual_M_Res[virtual_middles, 1], virtual_M_Res[virtual_middles+1, 1])
+                    # virtual_bingo<-virtual_middles[which(str_detect(virtual_connect_5, origin))][1]
+                    virtual_bingo<-virtual_middles[which(str_detect(virtual_connect_3, origin))][1]
                     bingo<-virtual_bingo-1
-                    if(origin=="のであろう"){bingo<-bingo+2}
+                    # if(origin=="のであろう"){bingo<-bingo+2}
                   }
                   res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
                 }
               }
             }else{
-              vec_overlap<-vector(FALSE, mn)#生成要素皆为FALSE的向量，长度为M_Res的行数
-              for(z in 1:mn) vec_overlap[z]<-fun_overlap(M_Res[z, 1], origin)
+              vec_overlap<-vector(FALSE, (mn-3))#生成要素皆为FALSE的向量，长度为M_Res的行数
+              for(z in 1:(mn-3)) vec_overlap[z]<-fun_overlap(M_Res[z, 1], origin)
               res2compact[[1]]<-c(res2compact[[1]], which(vec_overlap)[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
             }
           }
@@ -1175,7 +1103,6 @@ fun_MAV_for_Text<-function(x)
                                               深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
       res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
     }
-    #ここまでは大丈夫なようです。
     if(length(unique(res2compact[[1]]))!=length(res2compact[[1]])){
       含序列号数<-length(res2compact[[1]])
       通し番号<-1:含序列号数
@@ -1200,66 +1127,5 @@ fun_MAV_for_Text<-function(x)
     #元素1向量对象，其内容为M_Res中被判定为“助动词”的词素的行编号；
     #元素2为data.frame对象，内容被判定为“助动词”的词素的，浅、中、深3层标签。
     #余下的所以代码可统统删除。
-  }
-  if(0){
-    Colloquial_Style<-c(C_I_J, C_II_J, C_III_J, C_IV_J, C_V_J, C_VI_J, C_VII_M_Tai, C_VII_M_TaGaRu, C_VIII_J, C_IX_J, C_X_J, C_XI_M, C_XII_M, C_XIII_M, C_XIV_J, C_XV_J);names(Colloquial_Style)<-Labels_Concrete_Transformations[[1]]
-    Literary_Style<-c(L_1_J, L_2_M, L_3_M, L_4_M, L_5_M, L_6_M, L_7_M, L_8_M, L_9_J, L_12_M, L_13_M, L_14_M, L_15_J);names(Literary_Style)<-Labels_Concrete_Transformations[[2]]
-    Fusion_CL<-c(Colloquial_Style, Literary_Style)
-    #3/20更新：设计了第三套分母：对某一文本中某一助动词的某一活用形（设其为A_i），以其出现次数（n_{A_i}）除以该活用形出现次数（n_A）
-    #自制函数：输入一条向量，返回一条相同长度的向量，其每个元素均为输入向量中所有元素的和
-    fun_splinter<-function(x){
-      res<-rep(sum(x), length(x));return(res)
-    }
-    #自制函数：输入一条向量，将其中为NaN的元素转换为0
-    fun_convert_NaN_to_ZERO<-function(x){
-      x[which(is.nan(x))]<-0
-      return(x)
-    }
-    #----
-    Third_Denominators_1<-c(fun_splinter(C_I_J),
-                            fun_splinter(C_II_J),
-                            fun_splinter(C_III_J),
-                            fun_splinter(C_IV_J),
-                            fun_splinter(C_V_J),
-                            fun_splinter(C_VI_J),
-                            fun_splinter(C_VII_M_Tai),
-                            fun_splinter(C_VII_M_TaGaRu),
-                            fun_splinter(C_VIII_J),
-                            fun_splinter(C_IX_J),
-                            fun_splinter(C_X_J),
-                            fun_splinter(C_XI_M),
-                            fun_splinter(C_XII_M),
-                            fun_splinter(C_XIII_M),
-                            fun_splinter(C_XIV_J),
-                            fun_splinter(C_XV_J))
-    Third_Denominators_2<-c(fun_splinter(L_1_J),
-                            fun_splinter(L_2_M),
-                            fun_splinter(L_3_M),
-                            fun_splinter(L_4_M),
-                            fun_splinter(L_5_M),
-                            fun_splinter(L_6_M),
-                            fun_splinter(L_7_M),
-                            fun_splinter(L_8_M),
-                            fun_splinter(L_9_J),
-                            fun_splinter(L_12_M),
-                            fun_splinter(L_13_M),
-                            fun_splinter(L_14_M),
-                            fun_splinter(L_15_J))
-    #----
-    Third_Denominators<-c(Third_Denominators_1, Third_Denominators_2)
-    Num_auxiliary_verbs<-sum(Fusion_CL)#输入文本中的助动词的总数（作为之后求频率时分母的一个候补项）
-    #同一助动词的所有活用的出现次数总和
-    Colloquial_Style_Total<-c(sum(C_I_J), sum(C_II_J), sum(C_III_J), sum(C_IV_J), sum(C_V_J), sum(C_VI_J), sum(C_VII_M_Tai), sum(C_VII_M_TaGaRu), sum(C_VIII_J), sum(C_IX_J), sum(C_X_J), sum(C_XI_M), sum(C_XII_M), sum(C_XIII_M), sum(C_XIV_J), sum(C_XV_J));names(Colloquial_Style_Total)<-Colloquial_Style_Basic_Forms
-    Literary_Style_Total<-!c(sum(L_1_J), sum(L_2_M), sum(L_3_M), sum(L_4_M), sum(L_5_M), sum(L_6_M), sum(L_7_M), sum(L_8_M), sum(L_9_J), sum(L_12_M), sum(L_13_M), sum(L_14_M), sum(L_15_J));names(Literary_Style_Total)<-Literary_Style_Basic_Forms
-    Fusion_CL_Total<-c(Colloquial_Style_Total, Literary_Style_Total)
-    #list(Colloquial_Style, Literary_Style, Fusion_CL)
-    ##2021年2月22日（月）新添功能，将执行上述代码所得的3条频数向量转换为频度向量输出（分母为输入字符串所含形态素个数，按照Juman++解析结果）
-    A<-list(Colloquial_Style, Literary_Style, Fusion_CL)#助动词小类（助动词各活用形的具体表现）的出现次数（备注：大类为各助动词原型的出现次数）
-    Num_Morphemes<-mean(jn, mn)#2021/3/18更新：将总词素数从原先仅参考Juman++修改为参考Juman++和cabocha的算数平均。
-    B<-list(Colloquial_Style/Num_Morphemes, Literary_Style/Num_Morphemes, Fusion_CL/Num_Morphemes)#A中各项除以输入文本所含词素的总数
-    C<-list(Colloquial_Style/Num_auxiliary_verbs, Literary_Style/Num_auxiliary_verbs, Fusion_CL/Num_auxiliary_verbs)#A中各项除以输入文本所含助动词词素的总数
-    D<-list(fun_convert_NaN_to_ZERO(Colloquial_Style/Third_Denominators_1), fun_convert_NaN_to_ZERO(Literary_Style/Third_Denominators_2), fun_convert_NaN_to_ZERO(Fusion_CL/Third_Denominators))#3/20更新
-    E<-list(Colloquial_Style_Total, Literary_Style_Total, Fusion_CL_Total, Fusion_CL_Total/Num_Morphemes, Fusion_CL_Total/Num_auxiliary_verbs)#助动词大类的各项分布数据：1.大类（口语体）出现次数，2.大类（文语体）出现次数，3.前2者的并集，4.前者除以输入文本所含词素的总数，5.3.除以输入文本所含助动词词素的总数
-    list(Frequencies=A, Relative_Frequencies=B, Denominator_shifted_to_Aux=C, Third_Denominator=D, Total_Frequencies_Relative_Frequencies=E)#对上述单对象（A, B, C, D）打包，输出。
   }
 }
