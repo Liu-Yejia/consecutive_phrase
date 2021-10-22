@@ -18,6 +18,25 @@ fun_MAV_for_Text<-function(x){
     }
     return(x)
   }
+  #输入一条各元素为字符串的向量，将它们按顺序粘起来之后输出。
+  fun_InVec_adhere<-function(vec, sep=""){
+    library(stringr)
+    len<-length(vec)
+    if(len>=2){
+      res<-vec[1]
+      for(i in 2:len){
+        if(vec[i]!=""){
+          res<-str_c(res, vec[i], sep=sep)
+        }else{
+          break
+        }
+      }
+    }else{
+      res<-vec
+    }
+    return(res)
+  }#对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
+  #若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
   #前期准备
   if(1){
     #此处读取文本，并进行形态素解析（先Juman++，后MeCab）
@@ -838,7 +857,8 @@ fun_MAV_for_Text<-function(x){
         HIT_J<-data.frame(表层品词标签=column_1_J,
                                 行编号=column_2_J,
                                 基本形=column_3_J,
-                                活用形种类=column_4_J)
+                            活用形种类=column_4_J)
+        J_wait2project_sn<-HIT_J[, 2]
       }
       #寻找End_with_M中的非零元素，并将其
       #（1）在M_Res中的行编号、
@@ -883,7 +903,6 @@ fun_MAV_for_Text<-function(x){
         EndChar_per_Jmorpheme<-cumsum(charLen_per_Jmorpheme)
         StartChar_per_Jmorpheme<-EndChar_per_Jmorpheme-charLen_per_Jmorpheme+1
       if(nrow_J!=0){
-        nrow_J<-J_wait2project_sn%>%length
         for(i in 1:nrow_J){
           current_J_start_pos<-StartChar_per_Jmorpheme[J_wait2project_sn[i]]
           current_J_end_pos<-EndChar_per_Jmorpheme[J_wait2project_sn[i]]
@@ -934,211 +953,44 @@ fun_MAV_for_Text<-function(x){
         }
       }
     }# 用字符的位置来完成投影。
-    if(nrow_J!=0){
-      J_wait2project_sn<-fun_remove_zero(HIT_J[, 2])
-      #----
-      #此环节的核心概念为“映射”：对于J_Res中每个被判定为“助动词”的词素（假设其为j_i），在M_Res中遍寻其在原始字符串中的表现形式，笔者称其为“映射”
-      #如果M_Res中存在和j_i完全相同的词素m_k，将其在M_Res中的行编号k记入最终输出对象res2compact的第1元素。
-      #然后，按照事先决定的3段粒度填充
-      #----
-      for(i in 1:nrow_J){#对HIT_J中的每一个词素
-        origin<-J_Res[J_wait2project_sn[i], 1]#映射起点（J_Res中的形态素）
-        origin_before<-ifelse(J_wait2project_sn[i]!=1, J_Res[J_wait2project_sn[i]-1, 1], "")#当前映射起点前方的1个词素
-        origin_after<-J_Res[J_wait2project_sn[i]+1, 1]#当前映射起点后方1个词素
-        perfectly_hit<-which(M_Res[, 1]==origin)#映射起点正好与M_Res中的某一词素完全一致
-        if(length(perfectly_hit)!=0){#若存在“完美匹配”
-          if(length(perfectly_hit)==1){#如果M_Res只存在1个与映射起点J_i完全一致的词素（映射终点）的话，直接记下其行编号，和映射起点词素的3阶段粒度信息。
-            res2compact[[1]]<-c(res2compact[[1]], perfectly_hit)#把映射终点词素的行编号追加到res2compact的第1要素中。
-            res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-          }else{
-            #如果M_Res存在2个以上与映射起点J_i完全一致的词素（映射终点）的话，对比映射起点前后的1个词素和各映射终点前后的1个词素（若存在），定位正确的映射终点词素。
-            #具体方式为检测二者前后的1个词素（若存在）是否存在涵盖关系（例：存在字符串“ABCDE”，对此，J_Res的首列为“A/B/C/D/E”，M_Res的首列为“AB/C/D/E”。
-            #若映射起点为“C”，在检测到M_Res中确实存在与其完全一致的划分之后，仍需检测J_Res与M_Res中映射起点的前1个与后1个词素间是否存在包含关系。）
-            #创建1个2*2的矩阵来存储布尔值，用来反应映射起点和终点前后是否存在词素。
-            boolean_matrix<-matrix(F, 2, 2)#新建2行2列矩阵用以存储布尔值，初始均为FALSE
-            #                Before After
-            #        映射起点  F      F
-            #（当前）映射终点  F      F
-            colnames(boolean_matrix)<-c("Before", "After")
-            rownames(boolean_matrix)<-c("映射起点", "（当前）映射终点")
-            #找出映射起点的前1个和后1个词素（若存在的话）
-            if(1){
-              if(J_wait2project_sn[i]>1&J_wait2project_sn[i]<jn){#映射起点位于中间（即非首尾词素）的情况
-                boolean_matrix[1, ]<-T#“映射起点”前后均存在至少1个词素
-                jbefore<-J_Res[J_wait2project_sn[i]-1, 1]#映射起点的前1个词素
-                jafter<-J_Res[J_wait2project_sn[i]+1, 1]#映射起点的后1个词素
-              }else{
-                if(J_wait2project_sn[i]==1){#映射起点为首个词素的情况
-                  boolean_matrix[1, 2]<-T#[1, 2]<-T
-                  jafter<-J_Res[J_wait2project_sn[i]+1, 1]#映射起点的后1个词素
-                }else{#映射起点为末尾词素的情况
-                  boolean_matrix[1, 1]<-T
-                  jbefore<-J_Res[J_wait2project_sn[i]-1, 1]#映射起点的前1个词素
-                }
-              }
-            }
-            num_HitInM<-length(perfectly_hit)#M_Resにおいてパーフェクト・ヒットした回数
-            for(j in 1:num_HitInM){
-              #j<-1
-              #找出映射终点的前1个和后1个词素（若存在的话）
-              if(1){
-                if(perfectly_hit[j]>1&perfectly_hit[j]<mn){#（当前）映射终点位于中间（即非首尾词素）的情况
-                  boolean_matrix[2,]<-T
-                  mbefore<-M_Res[perfectly_hit[j]-1, 1]#（当前）映射终点的前1个词素
-                  mafter<-M_Res[perfectly_hit[j]+1, 1]#（当前）映射终点的后1个词素
-                }else{
-                  if(perfectly_hit[j]==1){#（当前）映射终点为首个词素的情况
-                    boolean_matrix[2, 2]<-T
-                    mafter<-M_Res[perfectly_hit[j]+1, 1]#映射终点的后1个词素
-                  }else{#（当前）映射终点为末尾词素的情况
-                    boolean_matrix[2, 1]<-T
-                    mbefore<-M_Res[perfectly_hit[j]-1, 1]#映射终点的前1个词素
-                  }
-                }
-              }
-              #根据boolean_matrix的第2行，决定比较对象是映射起点/终点的前方还是后方的1个词素
-              if(boolean_matrix[1, 1]&boolean_matrix[2, 1]){#如果映射起点和（当前）映射终点左侧均存在词素的话，执行以下代码
-                if(str_detect(jbefore, mbefore)|str_detect(mbefore, jbefore)){#若各自左侧词素间存在包含关系
-                  res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-                  break
-                }
-              }else{
-                if(boolean_matrix[1, 2]&boolean_matrix[2, 2]){#如果映射起点和（当前）映射终点右侧均存在词素的话，执行以下代码
-                  if(str_detect(jafter, mafter)|str_detect(mafter, jafter)){#若各自右侧词素间存在包含关系
-                    res2compact[[1]]<-c(res2compact[[1]], perfectly_hit[j]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-                    break
-                  }
-                }else{
-                  break# |T,F| 或 |F, T| 的情况，尽管不可能出现，补上一笔吧。
-                  # |F,T|    |T, F|
-                }
-              }
-            }
-          }
-        }else{#若与映射起点完美匹配的词素在M_Res中不存在的话
-          #----
-          #在M_Res的词素划分结果中找不到和J_Res中被判定为“助动词”的词素完全一致的词素（预计这种情况占大多数）。需要分6种情况讨论。
-          # 即： M      J
-          # (1)  ABCb   ABC # 与J相比，M后面多了一截
-          # (2)  aABC   ABC # 与J相比，M前面多了一截
-          # (3)  aABCb  ABC # 与J相比，M前后都多了一截
-          # (4)  AB/BC  ABC # M与J不完全一致，且包含于J之中
-          # (5)  aAB    ABC # M不包含J，且与J相比，前面多一截
-          # (6)  BCb    ABC # M不包含J，且与J相比，后面多一截
-          # 对于(1)~(4)，进行如下的正规表现，将M_Res中匹配到的位置i直接视作映射起点助动词，并进行（1）输出位置（即行编号）i、及3阶段粒度信息。
-          #----
-          case_1<-paste0("^", origin, ".+$"); res_case_1<-str_detect(pattern=case_1, M_Res[, 1])
-          case_2<-paste0("^.+", origin, "$"); res_case_2<-str_detect(pattern=case_2, M_Res[, 1])
-          case_3<-paste0("^.+", origin, ".+$"); res_case_3<-str_detect(pattern=case_3, M_Res[, 1])
-          #case 1
-          if(any(res_case_1)){
-            if(sum(res_case_1)==1){#M_Res中只有一个词素符合case1
-              res2compact[[1]]<-c(res2compact[[1]], which(res_case_1)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-            }else{#M_Res中有多个词素符合case1
-              numbers<-which(res_case_1)
-              bingo<-numbers[which(str_sub(M_Res[numbers-1, 1], -1)==str_sub(origin_before, -1))]
-              res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-            }
-          }
-          #case 2
-          if(any(res_case_2)){#若M_Res中存在符合case 2的词素
-            if(sum(res_case_2)==1){
-              res2compact[[1]]<-c(res2compact[[1]], which(res_case_2)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-            }else{
-              numbers<-which(res_case_2)
-              bingo<-numbers[which(str_sub(M_Res[numbers+1, 1], 1, 1)==str_sub(origin_after, 1, 1))]
-              res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-            }
-          }
-          #case 3
-          if(any(res_case_3)){#若M_Res中存在词素满足case 3，即映射起点完整包含于M_Res中某1词素中
-            if(sum(res_case_3)==1){#若M_Res中只有1个词素符合case3
-              res2compact[[1]]<-c(res2compact[[1]], which(res_case_3)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-            }else{#若M_Res中存在多个词素符合case 3
-              numbers<-which(res_case_3)
-              zengo<-str_split_fixed(M_Res[numbers, 1], origin, 2)#用origin将M_Res中包含它的词素分割为前半部分与后半部分，各成1列
-              bingo<-numbers[which(str_sub(zengo[, 1], -1)==str_sub(origin_before, -1)&str_sub(zengo[, 2], 1, 1)==str_sub(origin_after, 1, 1))]#若zengo中存在某1行i，满足M_Res[zengo_i1, 1]的最后1个字符与origin_before的最后1个字符相同，且M_Res[zengo_i2, 1]的最初1个字符与origin_after的最初1个字符相同
-              res2compact[[1]]<-c(res2compact[[1]], bingo[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-            }
-          }
-          #case 4以降  
-          if(!sum(res_case_1, res_case_2, res_case_3)){#若M_Res中不存在符合case 1, case 2, case 3的词素
-            res_case_4<-rep(F, (mn-3))#即可能存在符合case 4的词素。鉴于case 4的特殊性，即M_Res中存在词素包含于映射起点中。首先准备临时向量。
-            for(y in 1:(mn-3)) res_case_4[y]<-str_detect(origin, M_Res[y, 1])
-            if(any(res_case_4)){
-              if(sum(res_case_4)==1){#M_Res中只有1个词素符合case 4
-                res2compact[[1]]<-c(res2compact[[1]], which(res_case_4)); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-              }else{#M_Res中有多个词素符合case 4
-                if(sum(res_case_4)==2 & (which(res_case_4)[2]-which(res_case_4)[1]==1)){#M_Res中有2个词素符合case 4且2者连续
-                  #此处操作比较复杂：假设连续的2个词素（M_x和M_X+1，下标为序列号）组成了映射起点（origin）。
-                  #并且origin含两个助动词（第1义与第2义）。如，さ【せた】含两个助动词活用形：【せ】与【た】。
-                  #为解决该问题，苦思冥想后，给出下述解决方案；匹配【せる】时，将x追加至res2compact[[1]]中，将第1义追加至res2compact[[2]]中；匹配【た】时，同样将x追缴至res2compact[[1]]中，将第2义追加至res2compact[[2]]中。
-                  #在最后输出res2compact时，
-                  res2compact[[1]]<-c(res2compact[[1]], which(res_case_4)[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-                }else{#若M_Res中有多个词素符合case 4且互不连续，则需要判定哪一个是真正的映射终点
-                  #寻找真正的映射终点，可以想到的是连接其与前后各1个词素组成的字符串必包含映射起点。
-                  middles<-which(res_case_4)#M_Res中符合case 4的词素的序列号
-                  if(middles[1]==1){
-                    virtual_M_Res<-rbind(matrix("", 2, 10), M_Res)
-                    virtual_middles<-middles+2
-                    virtual_connect_5<-paste0(virtual_M_Res[virtual_middles-2, 1], virtual_M_Res[virtual_middles-1, 1], virtual_M_Res[virtual_middles, 1], virtual_M_Res[virtual_middles+1, 1], virtual_M_Res[virtual_middles+2, 1])
-                    virtual_bingo<-virtual_middles[which(str_detect(virtual_connect_5, origin))][1]#定位包含映射起点的那一组
-                    if(str_detect(origin, "され")){bingo<-virtual_bingo-1}else{bingo<-virtual_bingo-2}
-                    if(is.na(bingo)){bingo<-1}
-                  }else{
-                    virtual_M_Res<-rbind(rep("", 10), M_Res)
-                    virtual_middles<-middles+1
-                    # virtual_connect_5<-paste0(virtual_M_Res[virtual_middles-2, 1], virtual_M_Res[virtual_middles-1, 1], virtual_M_Res[virtual_middles, 1], virtual_M_Res[virtual_middles+1, 1], virtual_M_Res[virtual_middles+2, 1])
-                    virtual_connect_3<-paste0(virtual_M_Res[virtual_middles-1, 1], virtual_M_Res[virtual_middles, 1], virtual_M_Res[virtual_middles+1, 1])
-                    # virtual_bingo<-virtual_middles[which(str_detect(virtual_connect_5, origin))][1]
-                    virtual_bingo<-virtual_middles[which(str_detect(virtual_connect_3, origin))][1]
-                    bingo<-virtual_bingo-1
-                    # if(origin=="のであろう"){bingo<-bingo+2}
-                  }
-                  res2compact[[1]]<-c(res2compact[[1]], bingo); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-                }
-              }
-            }else{
-              vec_overlap<-vector(FALSE, (mn-3))#生成要素皆为FALSE的向量，长度为M_Res的行数
-              for(z in 1:(mn-3)) vec_overlap[z]<-fun_overlap(M_Res[z, 1], origin)
-              res2compact[[1]]<-c(res2compact[[1]], which(vec_overlap)[1]); res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
-            }
-          }
-        }
-      }
-      rle_len<-rle(res2compact[[1]])$lengths
-      res2compact[[1]][cumsum(rle_len)[which(rle_len==2)]]<-res2compact[[1]][cumsum(rle_len)[which(rle_len==2)]]+1
-      overflow<-which(res2compact[[1]]>mn)
-      if(length(overflow)!=0){
-        res2compact[[1]]<-res2compact[[1]][-overflow]
-        res2compact[[2]]<-res2compact[[2]][-(overflow-1),]
-      }
+    if(!is.null(HIT_M$行编号)){
+      res2compact[[1]]<-c(res2compact[[1]], HIT_M$"行编号")
     }
-    if(!is.null(HIT_M$行编号)){res2compact[[1]]<-c(res2compact[[1]], HIT_M$"行编号")}
     if(nrow_M!=0){
       transformed_HIT_M<-as.matrix(data.frame(浅层标签="助動詞",
                                               中层标签=paste("助動詞", HIT_M$"基本形", sep="_"),
                                               深层标签=paste("助動詞", HIT_M$"活用形种类", sep="_")))
       res2compact[[2]]<-rbind(res2compact[[2]], transformed_HIT_M)
     }
-    if(length(unique(res2compact[[1]]))!=length(res2compact[[1]])){
-      含序列号数<-length(res2compact[[1]])
-      通し番号<-1:含序列号数
-      need_to_combine<-sort(as.numeric(names(table(res2compact[[1]]))[通し番号[which(table(res2compact[[1]])>=2)]]))
-      for(i in need_to_combine){
-        current_group<-通し番号[which(res2compact[[1]]==i)]
-        需替换的行编号<-current_group[1]
-        需删除的行编号<-current_group[-1]
-        res2compact[[2]][需替换的行编号, 2:3]<-c((res2compact[[2]][current_group, 2]%>%table%>%sort(decreasing=TRUE)%>%names)[1], (res2compact[[2]][current_group, 3]%>%table%>%sort(decreasing=TRUE)%>%names)[1])
-        res2compact[[2]][需删除的行编号, 1]<-"重複"
-        res2compact[[1]][需删除的行编号]<-"重複"
-      }
-      res2compact[[1]]<-res2compact[[1]][-which(res2compact[[1]]=="重複")]
-      res2compact[[2]]<-res2compact[[2]][-which(res2compact[[2]][, 1]=="重複"),]
-    }
-    res2compact[[1]]<-as.numeric(res2compact[[1]])
     res2compact[[2]]<-res2compact[[2]][order(res2compact[[1]]), ]
     res2compact[[1]]<-sort(res2compact[[1]])
+    if(length(unique(res2compact[[1]]))!=length(res2compact[[1]])){
+      sn<-res2compact[[1]]
+      含序列号数<-length(res2compact[[1]])
+      通し番号<-1:含序列号数
+      temp<-rle(sn)
+      repeated_twice<-temp$values[which(temp$lengths==2)]
+      for(z in repeated_twice){
+        previous<-which(sn==z)[1]
+        if(res2compact[[2]][previous, 2]!=res2compact[[2]][previous+1, 2]){
+          sn[previous]<-sn[previous]-1
+        }else{
+          sn[previous]<-0
+        }
+      } # 如存在重复2次的编号，若对应助动词基本型不同的话，将前1个编号减1；若对应助动词基本型相同，将前一个变0
+      if(any(sn[-1]-sn[-含序列号数]==1)){
+        adjacent_previous<-which(sn[-1]-sn[-含序列号数]==1)
+        for(z in adjacent_previous){
+          if(res2compact[[2]][z, 2]==res2compact[[2]][z+1, 2]){
+            sn[z]<-0
+          }
+        }
+      } # 若存在相邻的1组编号，若对应的助动词基本型相同的话，将前1个编号改为0
+      if(any(sn==0)){
+        res2compact[[2]]<-res2compact[[2]][which(sn!=0),]
+        res2compact[[1]]<-sn[-which(sn==0)]
+      }
+    }
     return(res2compact)
     #至此，该函数（fun_Matching_Auxiliary_Verb_compact）的最终输出已编辑完成。
     #具体形式为list对象，含2个元素。
