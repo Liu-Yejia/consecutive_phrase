@@ -107,10 +107,10 @@ fun_MAV_for_Text<-function(x){
     ##口語体
     if(1){
       # I_せる/らせる
-      if(1){
+      Pots_C_I_J<-list(0, 0, 0, 0, 0, 0)#对象Pots用来收纳匹配到的词素的行编号。
+      if(0){
         Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "^せる|^させる"))
         Matched_Morphemes_Serial_Numbers<-fun_limit(Matched_Morphemes_Serial_Numbers, jn)
-        Pots_C_I_J<-list(0, 0, 0, 0, 0, 0)#对象Pots用来收纳匹配到的词素的行编号。
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           Pots_C_I_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="未然形")]
           Pots_C_I_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本連用形"|which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="タ形"))]
@@ -122,10 +122,10 @@ fun_MAV_for_Text<-function(x){
         }
       }
       # II_れる/られる
-      if(1){
+      Pots_C_II_J<-list(0, 0, 0, 0, 0, 0)
+      if(0){
         Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "^れる|^られる"))
         Matched_Morphemes_Serial_Numbers<-fun_limit(Matched_Morphemes_Serial_Numbers, jn)
-        Pots_C_II_J<-list(0, 0, 0, 0, 0, 0)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           Pots_C_II_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="未然形")]
           Pots_C_II_J[[3]]<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形"&str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "句点|読点|終助詞"))]
@@ -137,10 +137,10 @@ fun_MAV_for_Text<-function(x){
         }
       }
       # III_ない
-      if(1){
+      Pots_C_III_J<-list(0, 0, 0, 0, 0)
+      if(0){
         Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="ない"&J_Res[, 4]=="接尾辞")
         Matched_Morphemes_Serial_Numbers<-fun_limit(Matched_Morphemes_Serial_Numbers, jn)
-        Pots_C_III_J<-list(0, 0, 0, 0, 0)
         ###"及ぼす"无法被Jumanpp识别为一个动词
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           Pots_C_III_J[[1]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers, 2], "なかろ"))]
@@ -226,8 +226,8 @@ fun_MAV_for_Text<-function(x){
         }
       }
       # VIII_た/だ
-      if(1){
-        Pots_C_VIII_J<-list(0, 0, 0, 0)
+      Pots_C_VIII_J<-list(0, 0, 0, 0)
+      if(0){
         ## 计算终止形与连体形的频数
         TaDa<-which(str_detect(J_Res[, 10], "タ形"))
         TaDa<-fun_limit(TaDa, jn)
