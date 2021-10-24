@@ -1,5 +1,6 @@
 new_bunsetsu_patterns_1019<-function(string)#活用形情報入り文節パターンを求める関数
 {
+  string<-str_replace_all(string, "[0-9A-Za-z ]+", "D")
   fun_attract<-function(a, b, hanyi=1){
     if(0){a<-the_remainder;b<-AV_series_numbers;hanyi<-1}
     # 寻找不属于a的b中的元素，记下这些元素在b中的坐标。
