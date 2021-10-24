@@ -234,3 +234,4 @@ Analytic_MeCab_429<-function(input)
   list(Final_Result=Final_Result, input=input)
   #return(Final_Result)
 }
+# これでオッケーかも。
