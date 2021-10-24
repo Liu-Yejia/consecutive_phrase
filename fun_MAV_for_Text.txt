@@ -1,41 +1,42 @@
 fun_MAV_for_Text<-function(x){
   library(stringr)
-  fun_limit<-function(x, l){
-    #x为长度>=2的向量
-    #l为上限，等于net_J_Res或net_M_Res的长度
-    #若x中存在大于l的元素，输出将其剔除后的x‘向量
-    #若不存在大于l的元素，将x原样输出
-    if(any(x>l)){
-      pos<-which(x>l)
-      x<-x[-pos]
-    }
-    return(x)
-  }
-  fun_remove_zero<-function(x){
-    if(any(x==0)&any(x!=0)){
-      pos<-which(x==0)
-      x<-x[-pos]
-    }
-    return(x)
-  }
-  #输入一条各元素为字符串的向量，将它们按顺序粘起来之后输出。
-  fun_InVec_adhere<-function(vec, sep=""){
-    library(stringr)
-    len<-length(vec)
-    if(len>=2){
-      res<-vec[1]
-      for(i in 2:len){
-        if(vec[i]!=""){
-          res<-str_c(res, vec[i], sep=sep)
-        }else{
-          break
-        }
+  if(1){
+    fun_limit<-function(x, l){
+      #x为长度>=2的向量
+      #l为上限，等于net_J_Res或net_M_Res的长度
+      #若x中存在大于l的元素，输出将其剔除后的x‘向量
+      #若不存在大于l的元素，将x原样输出
+      if(any(x>l)){
+        pos<-which(x>l)
+        x<-x[-pos]
       }
-    }else{
-      res<-vec
+      return(x)
     }
-    return(res)
-  }#对向量；矩阵黏合函数，自动检查输入为向量还是矩阵，若输入为矩阵的话，调用direction参数；
+    fun_remove_zero<-function(x){
+      if(any(x==0)&any(x!=0)){
+        pos<-which(x==0)
+        x<-x[-pos]
+      }
+      return(x)
+    }
+    fun_InVec_adhere<-function(vec, sep=""){
+      library(stringr)
+      len<-length(vec)
+      if(len>=2){
+        res<-vec[1]
+        for(i in 2:len){
+          if(vec[i]!=""){
+            res<-str_c(res, vec[i], sep=sep)
+          }else{
+            break
+          }
+        }
+      }else{
+        res<-vec
+      }
+      return(res)
+    }##输入一条各元素为字符串的向量，将它们按顺序粘起来之后输出。
+  } # 自作関数
   #若为1，⇨｜⇦(从左右向中间压缩);否则，⇧ー⇩（从上下向中间压缩）
   #前期准备
   if(1){
@@ -50,7 +51,7 @@ fun_MAV_for_Text<-function(x){
     if(1){
       front_padding_M<-matrix("", 2, 10); front_padding_J<-matrix("", 2, 16) # front_padding
       rear_padding_M<-matrix("", 3, 10); rear_padding_J<-rep("", 16) # rear_padding
-      Mixture<-fun_ReadIn(x=x); net_J_Res<-Mixture[[1]]; net_M_Res<-Mixture[[2]]; net_M_Res[, 1]<-net_M_Res[, 1]%>%str_replace_all("_", ""); mn<-nrow(net_M_Res); jn<-nrow(net_J_Res)
+      Mixture<-fun_ReadIn(x=x); net_J_Res<-Mixture[[1]]; net_M_Res<-Mixture[[2]]$Final_Result; net_M_Res[, 1]<-net_M_Res[, 1]%>%str_replace_all("_", ""); mn<-nrow(net_M_Res); jn<-nrow(net_J_Res)
       M_Res<-rbind(net_M_Res, rear_padding_M); J_Res<-rbind(net_J_Res, rear_padding_J); extended_M_Res<-rbind(front_padding_M, M_Res); extended_J_Res<-rbind(front_padding_J, J_Res)
     }#准备M_Res和J_Res
     if(1){
