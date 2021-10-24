@@ -9,16 +9,25 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
                                forward_seizure=3,  # 向前方文节索取的词素数
                                backward_seizure=3, # 向后方文节索取的词素数
                                inside_breakup_mode="Character", # 或"Character"，"None"。指定对于过长文节的处置方式。
-                                                               # "Morpheme" ：将过长文节打碎至词素后，取Ngram。
-                                                               # "Character"：将过长文节打碎至字符后，取Ngram。
-                                                               # "None"     ：不做处理。
-                               inside_breakup_N_gram_size=2) # 对被打碎的过长文节取Ngram时，N的取值。
-{
+                                                                # "Morpheme" ：将过长文节打碎至词素后，取Ngram。
+                                                                # "Character"：将过长文节打碎至字符后，取Ngram。
+                                                                # "None"     ：不做处理。
+                               inside_breakup_N_gram_size=2){ # 对被打碎的过长文节取Ngram时，N的取值。
+  x<-str_replace_all(x, "[0-9A-Za-z ]+", "D")
+  if(1){
+    x
+    boundary<-"KU"
+    maximum<-5
+    minimum<-1
+    Minimum_Mode<-"Morpheme"
+      forward_seizure<-1
+      backward_seizure<-1
+    inside_breakup_mode<-"Morpheme"
+      inside_breakup_N_gram_size<-2
+  } # テスト環境
   library(stringr)
-  if(1)
-  {
-    fun_transfix<-function(x)
-    {
+  if(1){
+    fun_transfix<-function(x){
       len_elements<-length(x)
       res<-NULL
       for(i in 1:len_elements){
@@ -26,33 +35,26 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
       }
       res
     } # x为1 list对象，该函数用来按序连接其各个元素
-    fun_get_1st_and_last_cols<-function(x)
-    {
+    fun_get_1st_and_last_cols<-function(x){
       nc<-ncol(x)
       list(First=as.numeric(x[,1]), 
            Last=as.numeric(x[,nc]))
     } # x为matrix对象，该函数用来抽取其首列和末列作为输出list对象的两个元素。
-    Call_MeCab_simple<-function(input)
-    {
-      #input<-Rebuilt_Parts[i]
+    Call_MeCab_simple<-function(input){
       pseudo_input<-paste0("！", input)
-      #pseudo_input
       command_M<-paste("echo", pseudo_input, "| mecab -b 5242880")
       res_M<-system(command_M, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_replace_all("\\t",",")%>%str_split_fixed(pattern=",",10)
-      #res_M<-res_M%>%fun_rough_merge()
       res_M<-res_M[-1,]
     }
   } # 自制函数
-  if(1)
-  {
+  if(1){
     res_cabocha<-x%>%fun_cabocha # 将输入的平文本x切割至文节状态，生成文节链。
     res_cabocha_replica<-res_cabocha # 拷贝1份文节链，用以收容经扩展或寸断的文节。
     len_bunsetsu<-res_cabocha%>%length # 求x含文节的数量。
     len_per_bunsetsu<-rep(0, len_bunsetsu)
     detail_bunsetsu<-list()
     for(i in 1:len_bunsetsu){
-      detail_bunsetsu[[i]]<-res_cabocha[i]%>%Call_MeCab_simple
-      # detail_bunsetsu[[i]]<-res_cabocha[i]%>%Analytic_MeCab_429 # 保存各文节的词素解析结果（词素数*10列的矩阵）。
+      detail_bunsetsu[[i]]<-res_cabocha[i]%>%Call_MeCab_simple # 保存各文节的词素解析结果（词素数*10列的矩阵）。
       len_per_bunsetsu[i]<-detail_bunsetsu[[i]]%>%imp_nrow # 求各文节的长度。
     }
     end_positions_per_bunsetsu<-cumsum(len_per_bunsetsu) # 各文节中最末1个词素在总词素链（morpheme chain）中的位置。
@@ -61,26 +63,13 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
     too_long_num<-which(len_per_bunsetsu>maximum) # 过长文节的位置编号
     len_too_long_bunsetsu<-length(too_long_num) # 求过长文节的数量。
     morpheme_chain<-NULL
-    for(i in 1:len_bunsetsu){ 
+    for(i in 1:len_bunsetsu){
       if(is.null(nrow(detail_bunsetsu[[i]])))detail_bunsetsu[[i]]<-t(as.matrix(detail_bunsetsu[[i]]))
       morpheme_chain<-c(morpheme_chain, detail_bunsetsu[[i]][,1])
-    } # 生成1条向量，收纳被打碎至词素形式的输入文本，即“词素链”。
-    morpheme_chain<-str_replace_all(morpheme_chain, "_", "") # 除去词素链各要素中的“_“字符。
+    } # 生成1条向量，收纳被打碎至词素形式的输入文本，即“原始词素链”。
+    # morpheme_chain<-str_replace_all(morpheme_chain, "_", "") # 除去词素链各要素中的“_“字符。
   } # 对于输入文本x进行基础处理。
-  # 测试环境：[1, 2]; [7, ]，前后方向夺取的default为前后各夺1个词素。
-  if(0)
-  {
-    boundary="ZEN"
-    maximum<-6
-    minimum<-2
-    Minimum_Mode="Morpheme"
-    forward_seizure<-1
-    backward_seizure<-1
-    inside_breakup_mode="Morpheme"
-    inside_breakup_N_gram_size<-2
-  }
-  if(Minimum_Mode!="None")
-  {
+  if(Minimum_Mode!="None"){
     # 前后双向夺词素
     if(Minimum_Mode=="Morpheme"){
       if(forward_seizure!=0){
@@ -94,10 +83,10 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
         }else{
           for(i in 1:len_forward_seizable_2_short_bunsetsu){
             forward_seized_morphemes[i]<-morpheme_chain[(start_positions_per_bunsetsu[forward_seizable_too_short_num[i]]-forward_seizure):
-                                                          (start_positions_per_bunsetsu[forward_seizable_too_short_num[i]]-1)]%>%fun_glue(sep="")}
+                                                        (start_positions_per_bunsetsu[forward_seizable_too_short_num[i]]-1)]%>%fun_glue(sep="")}
         }
         if(boundary=="KU"){
-          invalid<-which(str_detect(forward_seized_morphemes, "。"))
+          invalid<-which(str_detect(forward_seized_morphemes, "、|。"))
           if(length(invalid)!=0){
             forward_seizable_too_short_num<-forward_seizable_too_short_num[-invalid] # 前夺词素向量中不含句号的过短文节的编号。
             forward_seized_morphemes<-forward_seized_morphemes[-invalid]
@@ -109,7 +98,7 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
       if(backward_seizure!=0){
         # 能进行后夺的过短文节的编号
         backward_seizable_too_short_num<-too_short_num[which((length(morpheme_chain)-end_positions_per_bunsetsu[too_short_num])>=backward_seizure)] # 过短文节中可以进行后夺（BS）操作的文节的编号。
-        cannot_backward_seizable_too_short_num<-setdiff(too_short_num, backward_seizable_too_short_num) # 上1行生成object的补集。
+        # cannot_backward_seizable_too_short_num<-setdiff(too_short_num, backward_seizable_too_short_num) # 上1行生成object的补集。
         len_backward_seizable_2_short_bunsetsu<-length(backward_seizable_too_short_num) # 求能进行后夺的过短文节的数量。
         backward_seized_morphemes<-rep("", len_backward_seizable_2_short_bunsetsu)
         if(backward_seizure==1){
@@ -129,7 +118,8 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
         res_cabocha_replica[backward_seizable_too_short_num]<-paste0(res_cabocha_replica[backward_seizable_too_short_num], backward_seized_morphemes)
         end_positions_per_bunsetsu[backward_seizable_too_short_num]<-end_positions_per_bunsetsu[backward_seizable_too_short_num]+backward_seizure
       } # 若backward_seizure不为零，进行后夺。
-      res_cabocha<-res_cabocha_replica # 用经过替换操作的文节链（res_cabocha_replica）替代原文节链（res_cabocha）。
+      # res_cabocha<-res_cabocha_replica # 用经过替换操作的文节链（res_cabocha_replica）替代原文节链（res_cabocha）。
+      # 到目前为止没有出现NA。
     }else{
       if(Minimum_Mode=="Bunsetsu"){
         # 对每个过短文节，比较其前1与后1文节的长度（单位为形态素），将当前过短文节按原序与较短一侧粘连；若2者长度相同，将当前过短文节按原序与前1文节相粘连。
@@ -164,46 +154,63 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
       }
     }
   }
-  if(inside_breakup_mode!="None")
-  {
-    if(inside_breakup_mode=="Morpheme")
-    {
+  if(inside_breakup_mode!="None"){
+    if(inside_breakup_mode=="Morpheme"){
       swellings<-list() # 代号：“腫れ物”，即分解过长文节所得到的词素N-gram。
-      for(i in 1:len_too_long_bunsetsu)
-      {
+      for(i in 1:len_too_long_bunsetsu){
         swellings[[i]]<-detail_bunsetsu[[too_long_num[i]]][, 1]%>%fun_Ngram(n=inside_breakup_N_gram_size, sep="")
       }
       len_per_swelling<-len_per_bunsetsu[too_long_num]-inside_breakup_N_gram_size+1 # 能从每个过长文节中提取的词素N_gram的数量。
       SE_pos_per_swelling<-list()
-      for(i in 1:len_too_long_bunsetsu)
-      {
-        (start_positions_per_bunsetsu[too_long_num[i]]:end_positions_per_bunsetsu[too_long_num[i]])%>%fun_Ngram(inside_breakup_N_gram_size, sep="_")%>%str_split_fixed(pattern="_", n=inside_breakup_N_gram_size)
+      for(i in 1:len_too_long_bunsetsu){
         SE_pos_per_swelling[[i]]<-(start_positions_per_bunsetsu[too_long_num[i]]:end_positions_per_bunsetsu[too_long_num[i]])%>%fun_Ngram(inside_breakup_N_gram_size, sep="_")%>%str_split_fixed(pattern="_", n=inside_breakup_N_gram_size)%>%fun_get_1st_and_last_cols
       } # 从各个过长文节中提取得到的，长度不一的词素N_gram的初词素与末词素的位置向量。
-      for(i in 1:len_too_long_bunsetsu)
-      {
-        LEFT <-res_cabocha_replica[1:(too_long_num[i]-1)] # 当前过长文节左侧文节链。
-        LEFT_start_positions_per_bunsetsu<-start_positions_per_bunsetsu[1:(too_long_num[i]-1)] # 当前过长文节左侧文节链对应的初词素位置向量。
-        LEFT_end_positions_per_bunsetsu<-end_positions_per_bunsetsu[1:(too_long_num[i]-1)] # 当前过长文节右侧文节链对应的末词素位置向量。
-        RIGHT<-res_cabocha_replica[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链。
-        RIGHT_start_positions_per_bunsetsu<-start_positions_per_bunsetsu[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链对应的初词素位置向量。
-        RIGHT_end_positions_per_bunsetsu<-end_positions_per_bunsetsu[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链对应的末词素位置向量。
-        too_long_num[(i+1):len_too_long_bunsetsu]<-too_long_num[(i+1):len_too_long_bunsetsu]+len_per_swelling[i]-1 # 更新当前过长文节之后的所有过长文节的编号。
-        # len_bunsetsu<-len_bunsetsu+len_per_swelling[i]-1 # 更新文节链的长度。
-        res_cabocha_replica<-c(LEFT, swellings[[i]], RIGHT) # 依次链接当前过长文节的左侧文节链、当前过长文节所对应的“腫れ物”、当前过长文节的右侧文节链。
-        len_bunsetsu<-res_cabocha_replica%>%length
-        start_positions_per_bunsetsu<-c(LEFT_start_positions_per_bunsetsu, SE_pos_per_swelling[[i]]$First, RIGHT_start_positions_per_bunsetsu)
-        end_positions_per_bunsetsu<-c(LEFT_end_positions_per_bunsetsu, SE_pos_per_swelling[[i]]$Last, RIGHT_end_positions_per_bunsetsu)
-      } # 各「長過ぎる文節」について、それを用いて「文節チェーン」と「各文節の初形態素と末形態素の通し番号を記録するベクトル」を左側部と右側部に二分。現在の「長過ぎる文節」を分解して得られた形態素のN-gramのベクトルとそれらの初形態素と末形態素の通し番号を記録する2つのベクトルを挿入する形で3つのベクトル（文節チェーン・初形態素位置・末形態素位置）を更新する
-      too_long_num<-too_long_num[-which(is.na(too_long_num))]
-    }else
-    { # 将过长文节分解为字符的N-gram。
+      for(i in 1:len_too_long_bunsetsu){
+        if(too_long_num[i]>1 & too_long_num[i]<len_bunsetsu){
+          LEFT <-res_cabocha_replica[1:(too_long_num[i]-1)] # 当前过长文节左侧文节链。
+            LEFT_start_positions_per_bunsetsu<-start_positions_per_bunsetsu[1:(too_long_num[i]-1)] # 当前过长文节左侧文节链对应的初词素位置向量。
+            LEFT_end_positions_per_bunsetsu<-end_positions_per_bunsetsu[1:(too_long_num[i]-1)] # 当前过长文节右侧文节链对应的末词素位置向量。
+          RIGHT<-res_cabocha_replica[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链。
+            RIGHT_start_positions_per_bunsetsu<-start_positions_per_bunsetsu[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链对应的初词素位置向量。
+            RIGHT_end_positions_per_bunsetsu<-end_positions_per_bunsetsu[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链对应的末词素位置向量。
+          if(i<len_too_long_bunsetsu){
+            too_long_num[(i+1):len_too_long_bunsetsu]<-too_long_num[(i+1):len_too_long_bunsetsu]+len_per_swelling[i]-1 # 更新当前过长文节之后的所有过长文节的编号。
+          }
+          res_cabocha_replica<-c(LEFT, swellings[[i]], RIGHT) # 依次链接当前过长文节的左侧文节链、当前过长文节所对应的“腫れ物”、当前过长文节的右侧文节链。
+          len_bunsetsu<-res_cabocha_replica%>%length # 更新文节链的长度。
+          start_positions_per_bunsetsu<-c(LEFT_start_positions_per_bunsetsu, SE_pos_per_swelling[[i]]$First, RIGHT_start_positions_per_bunsetsu)
+          end_positions_per_bunsetsu<-c(LEFT_end_positions_per_bunsetsu, SE_pos_per_swelling[[i]]$Last, RIGHT_end_positions_per_bunsetsu)
+          # 各「長過ぎる文節」について、それを用いて「文節チェーン」と「各文節の初形態素と末形態素の通し番号を記録するベクトル」を左側部と右側部に二分。
+          # 現在の「長過ぎる文節」を分解して得られた形態素のN-gramのベクトルとそれらの初形態素と末形態素の通し番号を記録する2つのベクトルを挿入する形で
+          # 3つのベクトル（文節チェーン・初形態素位置・末形態素位置）を更新する。
+        }else{
+          if(too_long_num[i]==1){
+            RIGHT<-res_cabocha_replica[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链。
+              RIGHT_start_positions_per_bunsetsu<-start_positions_per_bunsetsu[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链对应的初词素位置向量。
+              RIGHT_end_positions_per_bunsetsu<-end_positions_per_bunsetsu[(too_long_num[i]+1):len_bunsetsu] # 当前过长文节右侧文节链对应的末词素位置向量。
+            if(i<len_too_long_bunsetsu){
+              too_long_num[(i+1):len_too_long_bunsetsu]<-too_long_num[(i+1):len_too_long_bunsetsu]+len_per_swelling[i]-1 # 更新当前过长文节之后的所有过长文节的编号。
+            }
+            res_cabocha_replica<-c(swellings[[i]], RIGHT)
+            len_bunsetsu<-res_cabocha_replica%>%length # 更新文节链的长度。
+            start_positions_per_bunsetsu<-c(SE_pos_per_swelling[[i]]$First, RIGHT_start_positions_per_bunsetsu)
+            end_positions_per_bunsetsu<-c(SE_pos_per_swelling[[i]]$Last, RIGHT_end_positions_per_bunsetsu)
+          }else{
+            LEFT <-res_cabocha_replica[1:(too_long_num[i]-1)] # 当前过长文节左侧文节链。
+              LEFT_start_positions_per_bunsetsu<-start_positions_per_bunsetsu[1:(too_long_num[i]-1)] # 当前过长文节左侧文节链对应的初词素位置向量。
+              LEFT_end_positions_per_bunsetsu<-end_positions_per_bunsetsu[1:(too_long_num[i]-1)] # 当前过长文节右侧文节链对应的末词素位置向量。
+            res_cabocha_replica<-c(LEFT, swellings[[i]])
+            len_bunsetsu<-res_cabocha_replica%>%length # 更新文节链的长度。
+            start_positions_per_bunsetsu<-c(LEFT_start_positions_per_bunsetsu, SE_pos_per_swelling[[i]]$First)
+            end_positions_per_bunsetsu<-c(LEFT_end_positions_per_bunsetsu, SE_pos_per_swelling[[i]]$Last)
+          }
+        }
+      }
+    }else{ 
+      # 将过长文节分解为字符的N-gram。
       swellings<-list() # 代号同为“腫れ物”，存储分解过长文节所得到的字符N-gram。
-      for(i in 1:len_too_long_bunsetsu)
-      {
-        swellings[[i]]<-res_cabocha_replica[too_long_num[i]]%>%
-          str_sub(1:nchar(res_cabocha_replica[too_long_num[i]]), 1:nchar(res_cabocha_replica[too_long_num[i]]))%>%
-          fun_Ngram(n=inside_breakup_N_gram_size)
+      for(i in 1:len_too_long_bunsetsu){
+        swellings[[i]]<-res_cabocha_replica[too_long_num[i]]%>%str_sub(1:nchar(res_cabocha_replica[too_long_num[i]]), 1:nchar(res_cabocha_replica[too_long_num[i]]))%>%fun_Ngram(n=inside_breakup_N_gram_size)
       }
       res_cabocha_replica<-res_cabocha_replica[-too_long_num]
       start_positions_per_bunsetsu<-start_positions_per_bunsetsu[-too_long_num]
@@ -212,7 +219,9 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
     }
   }
   if(1){
-    neo<-fun_glue(rbind(res_cabocha_replica, start_positions_per_bunsetsu, end_positions_per_bunsetsu), 2, sep="_")%>%unique%>%str_split_fixed("_", 3)
+    neo<-fun_glue(rbind(res_cabocha_replica,
+                        start_positions_per_bunsetsu,
+                        end_positions_per_bunsetsu), 2, sep="_")%>%unique%>%str_split_fixed("_", 3)
     res_cabocha_replica<-neo[,1]
     start_positions_per_bunsetsu<-as.numeric(neo[,2])
     end_positions_per_bunsetsu<-as.numeric(neo[,3])
