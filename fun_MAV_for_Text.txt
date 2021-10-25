@@ -859,7 +859,9 @@ fun_MAV_for_Text<-function(x){
                                 行编号=column_2_J,
                                 基本形=column_3_J,
                             活用形种类=column_4_J)
-        J_wait2project_sn<-HIT_J[, 2]
+        if(nrow(HIT_J)>0){
+          J_wait2project_sn<-HIT_J[, 2]
+        }
       }
       #寻找End_with_M中的非零元素，并将其
       #（1）在M_Res中的行编号、
