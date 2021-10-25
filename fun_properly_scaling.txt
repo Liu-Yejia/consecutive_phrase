@@ -8,21 +8,21 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
                                                         # "None"    ：不做处理。
                                forward_seizure=3,  # 向前方文节索取的词素数
                                backward_seizure=3, # 向后方文节索取的词素数
-                               inside_breakup_mode="Character", # 或"Character"，"None"。指定对于过长文节的处置方式。
+                               inside_breakup_mode="Morpheme", # 或"Character"，"None"。指定对于过长文节的处置方式。
                                                                 # "Morpheme" ：将过长文节打碎至词素后，取Ngram。
                                                                 # "Character"：将过长文节打碎至字符后，取Ngram。
                                                                 # "None"     ：不做处理。
                                inside_breakup_N_gram_size=2){ # 对被打碎的过长文节取Ngram时，N的取值。
-  x<-str_replace_all(x, "[0-9A-Za-z ]+", "D")
+  x<-str_replace_all(x, "[0-9A-Za-z ]+", "0")
   if(1){
-    x
     boundary<-"KU"
     maximum<-5
-    minimum<-1
+    minimum<-2
     Minimum_Mode<-"Morpheme"
       forward_seizure<-1
       backward_seizure<-1
-    inside_breakup_mode<-"Morpheme"
+    inside_breakup_mode<-"Character"
+    # inside_breakup_mode<-"Morpheme"
       inside_breakup_N_gram_size<-2
   } # テスト環境
   library(stringr)
@@ -205,6 +205,7 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
             end_positions_per_bunsetsu<-c(LEFT_end_positions_per_bunsetsu, SE_pos_per_swelling[[i]]$Last)
           }
         }
+        cat(i, "\n")
       }
     }else{ 
       # 将过长文节分解为字符的N-gram。
@@ -219,15 +220,19 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
     }
   }
   if(1){
-    neo<-fun_glue(rbind(res_cabocha_replica,
-                        start_positions_per_bunsetsu,
-                        end_positions_per_bunsetsu), 2, sep="_")%>%unique%>%str_split_fixed("_", 3)
-    res_cabocha_replica<-neo[,1]
-    start_positions_per_bunsetsu<-as.numeric(neo[,2])
-    end_positions_per_bunsetsu<-as.numeric(neo[,3])
-  } # 去重。
-  if(1){
-    RESULT<-data.frame(RCR=res_cabocha_replica, START=start_positions_per_bunsetsu, END=end_positions_per_bunsetsu)
-    list(RCR=res_cabocha_replica, START=start_positions_per_bunsetsu, END=end_positions_per_bunsetsu)
-  } # 输出。
+    if(inside_breakup_mode!="Character"){
+      neo<-fun_glue(rbind(res_cabocha_replica,
+                          start_positions_per_bunsetsu,
+                          end_positions_per_bunsetsu), 2, sep="_")%>%unique%>%str_split_fixed("_", 3)
+      res_cabocha_replica<-neo[,1]
+      start_positions_per_bunsetsu<-as.numeric(neo[,2])
+      end_positions_per_bunsetsu<-as.numeric(neo[,3])
+      RESULT<-data.frame(RCR=res_cabocha_replica, START=start_positions_per_bunsetsu, END=end_positions_per_bunsetsu)
+      return(RESULT)
+    }else{
+      RESULT<-data.frame(RCR=res_cabocha_replica$bunsetsu_data, START=start_positions_per_bunsetsu, END=end_positions_per_bunsetsu)
+      # temp_res<-list(RESULT=RESULT, ChaN=res_cabocha_replica$N_grams_of_Characters)
+      list(RESULT=RESULT, ChaN=res_cabocha_replica$N_grams_of_Characters)
+    }
+  } # 去重,输出。
 }
