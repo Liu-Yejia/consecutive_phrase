@@ -1,5 +1,5 @@
-fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于过短文节，判断其前forward_seizure个词素（或后backward_seizure个词素）中是否含“。”，若TRUE，不对其进行前夺（或后夺）处理：若FALSE，对其进行前夺（或后夺）处理。
-                               x, # x is a plain text.
+fun_properly_scaling<-function(x, # x is a plain text.
+                               boundary="ZEN", # 或“KU”。“KU”：对于过短文节，判断其前forward_seizure个词素（或后backward_seizure个词素）中是否含“。”，若TRUE，不对其进行前夺（或后夺）处理：若FALSE，对其进行前夺（或后夺）处理。
                                maximum=6, # 长度（单位为词素）超过maximum的文节会被从内部分解至形态素或字符的n-gram形式
                                minimum=2, # 对于长度（单位为词素）小于minimum的文节，该函数将从其 (前|后|前后) [1多] 个文节中夺取 forward|backward)_seizure 个形态素，将其延长
                                Minimum_Mode="Morpheme", # 或"Bunsetsu", "None"。指定对于过短文节的处置方式。
@@ -14,7 +14,7 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
                                                                 # "None"     ：不做处理。
                                inside_breakup_N_gram_size=2){ # 对被打碎的过长文节取Ngram时，N的取值。
   x<-str_replace_all(x, "[0-9A-Za-z ]+", "0")
-  if(1){
+  if(0){
     boundary<-"KU"
     maximum<-5
     minimum<-2
@@ -227,9 +227,23 @@ fun_properly_scaling<-function(boundary="ZEN", # 或“KU”。“KU”：对于
       res_cabocha_replica<-neo[,1]
       start_positions_per_bunsetsu<-as.numeric(neo[,2])
       end_positions_per_bunsetsu<-as.numeric(neo[,3])
+      if(any(str_detect(res_cabocha_replica, "[、。].+"))){
+        unnecessary_num<-which(str_detect(res_cabocha_replica, "[、。].+"))
+        res_cabocha_replica<-res_cabocha_replica[-unnecessary_num]
+        start_positions_per_bunsetsu<-start_positions_per_bunsetsu[-unnecessary_num]
+        end_positions_per_bunsetsu<-end_positions_per_bunsetsu[-unnecessary_num]
+      }
       RESULT<-data.frame(RCR=res_cabocha_replica, START=start_positions_per_bunsetsu, END=end_positions_per_bunsetsu)
       return(RESULT)
     }else{
+      if(1){ # 删除初字符位置或内部含“、”或“。”的伪文节’。
+        if(any(str_detect(res_cabocha, "[、。].+"))){
+          unnecessary_num<-which(str_detect(res_cabocha, "[、。].+"))
+          res_cabocha_replica<-res_cabocha_replica[-unnecessary_num]
+          start_positions_per_bunsetsu<-start_positions_per_bunsetsu[-unnecessary_num]
+          end_positions_per_bunsetsu<-end_positions_per_bunsetsu[-unnecessary_num]
+        }
+      }
       RESULT<-data.frame(RCR=res_cabocha_replica$bunsetsu_data, START=start_positions_per_bunsetsu, END=end_positions_per_bunsetsu)
       # temp_res<-list(RESULT=RESULT, ChaN=res_cabocha_replica$N_grams_of_Characters)
       list(RESULT=RESULT, ChaN=res_cabocha_replica$N_grams_of_Characters)
