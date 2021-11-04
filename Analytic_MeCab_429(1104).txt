@@ -417,7 +417,7 @@ Analytic_MeCab_429<-function(input){
     Final_Result[Special_Nouns_sn, 2]<-"名詞*"
   }
   Final_Result<-Final_Result %>% fun_extra_merge %>% fun_fusion_PrefixOrSuffix_and_Noun %>% fun_rough_merge
-  Final_Result<-rbind(Final_Result, matrix("", nrow=3, ncol=10))
+  # Final_Result<-rbind(Final_Result, matrix("", nrow=3, ncol=10))
   if(1){
     #convert quasi-commas and quasi-periods to commas and periods
     quasi_commas<-which(str_detect(Final_Result[,1], "^(・|，|ーー|ー|,)$"))
