@@ -447,5 +447,6 @@ Analytic_MeCab_429<-function(input){
   if(cut_tail){
     Final_Result<-Final_Result[-nrow(Final_Result), ]
   }
+  input<-Final_Result[,1]%>%fun_InVec_adhere(sep="")
   list(Final_Result=Final_Result, input=input)
 }
