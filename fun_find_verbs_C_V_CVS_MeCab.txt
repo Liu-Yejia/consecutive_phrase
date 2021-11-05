@@ -15,8 +15,18 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
     num_objects<-length(x)
     #生成用来存储结果的矩阵
     if(1){
-      Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)#活用形矩阵
-      types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
+      # Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=7)#活用形矩阵
+      Conjugates_Matrix<-matrix(0, nrow=num_objects, ncol=9)#活用形矩阵
+      # types<-c("未然形（口語体）", "未然形（文語体）", "連用形", "終止形", "連体形", "仮定形", "命令形")
+      types<-c("未然形（口語体）",
+               "未然形（文語体）",
+               "連用形",
+               "終止形",
+               "連体形",
+               "仮定形",
+               "命令形",
+               "基本形",
+               "口語形")
       colnames(Conjugates_Matrix)<-types
       if(num_objects>1){
         rownames(Conjugates_Matrix)<-objects_res[, 8]
@@ -42,6 +52,8 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
         Conjugates_Matrix[series_end_form, 5]<-1
         Conjugates_Matrix[which(objects_res[,7]=="仮定形"),6]<-1
         Conjugates_Matrix[which(str_detect(objects_res[,7], "^命令.+$")), 7]<-1
+        Conjugates_Matrix[which(str_detect(objects_res[,7], ".+基本形")), 8]<-1
+        Conjugates_Matrix[which(objects_res[,7]=="口語形"), 9]<-1
       }else{
         double_objects_res<-rbind(objects_res, objects_res)
         double_x<-rep(x, 2)
@@ -60,6 +72,8 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
         double_Conjugates_Matrix[series_end_form, 5]<-1
         double_Conjugates_Matrix[which(double_objects_res[,7]=="仮定形"),6]<-1
         double_Conjugates_Matrix[which(str_detect(double_objects_res[,7], "^命令.+$")), 7]<-1
+        double_Conjugates_Matrix[which(double_objects_res[,7]=="文語基本形"), 8]<-1
+        double_Conjugates_Matrix[which(double_objects_res[,7]=="口語形"), 9]<-1
         Conjugates_Matrix<-t(double_Conjugates_Matrix[1, ])
         rownames(Conjugates_Matrix)<-rownames(double_Conjugates_Matrix)[1]
       }
@@ -70,6 +84,8 @@ fun_find_verbs_C_V_CVS_MeCab<-function(material){#此处的material必须为自�
       基本形<-objects_res[8]
     }
     活用形<-types[apply(Conjugates_Matrix, 1, fun_0)]
+    # string
+    # material[x[which(rowSums(Conjugates_Matrix)!=1)]+2,]
     匹配序列号<-x
     三阶粒度=data.frame(浅层标签="動詞",
                         中层标签=paste("動詞", 活用形, sep="_"),
