@@ -51,8 +51,16 @@ fun_MAV_for_Text<-function(x){
     if(1){
       front_padding_M<-matrix("", 2, 10); front_padding_J<-matrix("", 2, 16) # front_padding
       rear_padding_M<-matrix("", 3, 10); rear_padding_J<-rep("", 16) # rear_padding
-      Mixture<-fun_ReadIn(x=x); net_J_Res<-Mixture[[1]]; net_M_Res<-Mixture[[2]]$Final_Result; net_M_Res[, 1]<-net_M_Res[, 1]%>%str_replace_all("_", ""); mn<-nrow(net_M_Res); jn<-nrow(net_J_Res)
-      M_Res<-rbind(net_M_Res, rear_padding_M); J_Res<-rbind(net_J_Res, rear_padding_J); extended_M_Res<-rbind(front_padding_M, M_Res); extended_J_Res<-rbind(front_padding_J, J_Res)
+      Mixture<-fun_ReadIn(x=x)
+      fix(fun_ReadIn)
+      net_J_Res<-Mixture[[1]]; net_J_Res[, 1]<-net_J_Res[, 1]%>%str_replace_all("_", "")
+      net_M_Res<-Mixture[[2]]$Final_Result; net_M_Res[, 1]<-net_M_Res[, 1]%>%str_replace_all("_", "")
+      mn<-nrow(net_M_Res)
+      jn<-nrow(net_J_Res)
+      M_Res<-rbind(net_M_Res, rear_padding_M)
+      J_Res<-rbind(net_J_Res, rear_padding_J)
+      extended_M_Res<-rbind(front_padding_M, M_Res)
+      extended_J_Res<-rbind(front_padding_J, J_Res)
     }#准备M_Res和J_Res
     if(1){
       Full_Set<-c("未然形", "連用形", "終止形", "連体形", "仮定形", "命令形")#完整的6项活用形
@@ -154,25 +162,28 @@ fun_MAV_for_Text<-function(x){
       }
       # IV_ぬ
       if(1){
-        Matched_Morphemes_Serial_Numbers<-which(M_Res[, 8]=="ぬ" & M_Res[, 2]=="助動詞")
-        Matched_Morphemes_Serial_Numbers<-fun_limit(Matched_Morphemes_Serial_Numbers, mn)
+        Matched_Morphemes_Serial_Numbers<-which(net_M_Res[, 8]=="ぬ" & net_M_Res[, 2]=="助動詞")
+        # Matched_Morphemes_Serial_Numbers<-fun_limit(Matched_Morphemes_Serial_Numbers, mn)
         Pots_C_IV_M<-list(0, 0, 0, 0)
         nitakuitsu<-F
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
-          Pots_C_IV_M[[1]]<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 1]=="ず")]
-          Pots_C_IV_M[[2]]<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形" & str_detect(M_Res[Matched_Morphemes_Serial_Numbers+1, 2], "助詞|記号"))]
-          if(length(Pots_C_IV_M[[2]])!=0){nitakuitsu<-T;nitakuitsu_num<-Pots_C_IV_M[[2]]}
-          Pots_C_IV_M[[3]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(M_Res[Matched_Morphemes_Serial_Numbers, 7], "基本形") & M_Res[Matched_Morphemes_Serial_Numbers+1, 2]=="名詞")]
-          Pots_C_IV_M[[4]]<-Matched_Morphemes_Serial_Numbers[which(M_Res[Matched_Morphemes_Serial_Numbers, 7]=="仮定形")]
+          Pots_C_IV_M[[1]]<-Matched_Morphemes_Serial_Numbers[which(net_M_Res[Matched_Morphemes_Serial_Numbers, 1]=="ず")]
+          Pots_C_IV_M[[2]]<-Matched_Morphemes_Serial_Numbers[which(net_M_Res[Matched_Morphemes_Serial_Numbers, 7]=="基本形" & str_detect(net_M_Res[Matched_Morphemes_Serial_Numbers+1, 2], "助詞|記号"))]
+          if(length(Pots_C_IV_M[[2]])!=0){
+            nitakuitsu<-T
+            nitakuitsu_num<-Pots_C_IV_M[[2]]
+          }
+          Pots_C_IV_M[[3]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(net_M_Res[Matched_Morphemes_Serial_Numbers, 7], "基本形") & net_M_Res[Matched_Morphemes_Serial_Numbers+1, 2]=="名詞")]
+          Pots_C_IV_M[[4]]<-Matched_Morphemes_Serial_Numbers[which(net_M_Res[Matched_Morphemes_Serial_Numbers, 7]=="仮定形")]
           rm(Matched_Morphemes_Serial_Numbers)
         }
         Pots_C_IV_M[[3]]<-sort(unique(c(Pots_C_IV_M[[3]], which(str_detect(net_M_Res[, 1], "^.*らぬ$")))))
       }
       # V_う/よう
-      if(1){
+      Pots_C_V_J<-list(0, 0)
+      if(0){
         Matched_Morphemes_Serial_Numbers<-sort(c(which(J_Res[, 10]=="意志形"&(J_Res[, 4]=="動詞"|J_Res[, 6]=="動詞性接尾辞")), which(str_detect(J_Res[, 2], "^.*う$")&J_Res[, 4]=="助動詞"|(J_Res[, 4]=="形容詞"&str_detect(J_Res[, 10], "基本推量形")))))
         Matched_Morphemes_Serial_Numbers<-fun_limit(Matched_Morphemes_Serial_Numbers, jn)
-        Pots_C_V_J<-list(0, 0)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
           Pots_C_V_J[[2]]<-Matched_Morphemes_Serial_Numbers[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers+1, 6], "名詞"))]
           Pots_C_V_J[[1]]<-setdiff(Matched_Morphemes_Serial_Numbers, Pots_C_V_J[[2]])
@@ -251,28 +262,28 @@ fun_MAV_for_Text<-function(x){
         # 仮定形：ようなら                 a4_2
         ##----
         Pots_C_IX_J<-list(0, 0, 0, 0, 0)
-        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "よう"))%>%fun_limit(jn)
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(net_J_Res[, 3], "よう"))# %>%fun_limit(jn)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
-          Matched_Morphemes_Serial_Numbers_1<-which(J_Res[, 3]=="ようだ")
-          Matched_Morphemes_Serial_Numbers_2<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="")]
+          Matched_Morphemes_Serial_Numbers_1<-which(net_J_Res[, 3]=="ようだ")
+          Matched_Morphemes_Serial_Numbers_2<-Matched_Morphemes_Serial_Numbers[which(net_J_Res[Matched_Morphemes_Serial_Numbers, 10]=="")]
           #先对Matched_Morphemes_Serial_Numbers_1进行分解
           if(1){
-            a1<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="基本形")]#;fun_returning(x=a1)# “ようだ”
-            a2<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本連用形")]#;fun_returning(a2)# “ように”
-            a3<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本連体形")]#;fun_returning(a3)# “ような”
-            a4<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="語幹")]#;fun_returning(a4)
-            a4_1<-a4[which(J_Res[a4+1, 1]!="なら")]#;fun_returning(a4_1)# 相当于“ようだ”的终止形
-            a4_2<-a4[which(J_Res[a4+1, 1]=="なら")]#;fun_returning(a4_2)# “ようだ”的仮定形（的一部分）
-            a5<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本推量形")]#;fun_returning(a5)# “ようだろう”
-            a6<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ系連用テ形")]#;fun_returning(a6)# “ようで”
-            a7<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="デアル列基本形")]#;fun_returning(a7)# “ようである”
-            a8<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本省略推量形")]#;fun_returning(a8)# “ようだろ”
-            a9<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ系条件形")]#;fun_returning(a9)# “ようだったら”
-            a10<-Matched_Morphemes_Serial_Numbers_1[which(J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ形")]#;fun_returning(a10, 1)# “ようだった” 
+            a1<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="基本形")]#;fun_returning(x=a1)# “ようだ”
+            a2<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本連用形")]#;fun_returning(a2)# “ように”
+            a3<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本連体形")]#;fun_returning(a3)# “ような”
+            a4<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="語幹")]#;fun_returning(a4)
+            a4_1<-a4[which(net_J_Res[a4+1, 1]!="なら")]#;fun_returning(a4_1)# 相当于“ようだ”的终止形
+            a4_2<-a4[which(net_J_Res[a4+1, 1]=="なら")]#;fun_returning(a4_2)# “ようだ”的仮定形（的一部分）
+            a5<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本推量形")]#;fun_returning(a5)# “ようだろう”
+            a6<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ系連用テ形")]#;fun_returning(a6)# “ようで”
+            a7<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="デアル列基本形")]#;fun_returning(a7)# “ようである”
+            a8<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列基本省略推量形")]#;fun_returning(a8)# “ようだろ”
+            a9<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ系条件形")]#;fun_returning(a9)# “ようだったら”
+            a10<-Matched_Morphemes_Serial_Numbers_1[which(net_J_Res[Matched_Morphemes_Serial_Numbers_1, 10]=="ダ列タ形")]#;fun_returning(a10, 1)# “ようだった” 
           }
           #再对Matched_Morphemes_Serial_Numbers_2进行分解
           if(1){
-            a11<-Matched_Morphemes_Serial_Numbers_2[which(str_detect(J_Res[Matched_Morphemes_Serial_Numbers_2+1, 1], "^だろ"))] # “ようだろ”，未然形。
+            a11<-Matched_Morphemes_Serial_Numbers_2[which(str_detect(net_J_Res[Matched_Morphemes_Serial_Numbers_2+1, 1], "^だろ"))] # “ようだろ”，未然形。
             a12<-setdiff(Matched_Morphemes_Serial_Numbers_2, a11) # 对于“ように”，省略“に”；或者“ようであれば”。一言以概之，連用形。
           }
           #填充
@@ -295,17 +306,17 @@ fun_MAV_for_Text<-function(x){
       }
       # X_らしい
       if(1){
-        Matched_Morphemes_Serial_Numbers<-which(str_detect(J_Res[, 3], "らしい$"))%>%fun_limit(jn)
+        Matched_Morphemes_Serial_Numbers<-which(str_detect(net_J_Res[, 3], "らしい$"))# %>%fun_limit(jn)
         Pots_C_X_J<-list(0, 0, 0, 0, 0, 0)
         if(length(Matched_Morphemes_Serial_Numbers)!=0){
-          a<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="文語未然形")] # “らしからぬ”
-          b<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本連用形")] # “らしく”
-          c<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="タ形")] # “らしかっ”
-          d<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形")] # “らしい”
-          d_1<-d[which(J_Res[d+1, 4]=="名詞")] # “連体形”
+          a<-Matched_Morphemes_Serial_Numbers[which(net_J_Res[Matched_Morphemes_Serial_Numbers, 10]=="文語未然形")] # “らしからぬ”
+          b<-Matched_Morphemes_Serial_Numbers[which(net_J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本連用形")] # “らしく”
+          c<-Matched_Morphemes_Serial_Numbers[which(net_J_Res[Matched_Morphemes_Serial_Numbers, 10]=="タ形")] # “らしかっ”
+          d<-Matched_Morphemes_Serial_Numbers[which(net_J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本形")] # “らしい”
+          d_1<-d[which(net_J_Res[d+1, 4]=="名詞")] # “連体形”
           d_2<-setdiff(d, d_1) # “終止形”
-          e<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")] # “らしけれ”
-          f<-Matched_Morphemes_Serial_Numbers[which(J_Res[Matched_Morphemes_Serial_Numbers, 10]=="文語連体形")] # “らしき”
+          e<-Matched_Morphemes_Serial_Numbers[which(net_J_Res[Matched_Morphemes_Serial_Numbers, 10]=="基本条件形")] # “らしけれ”
+          f<-Matched_Morphemes_Serial_Numbers[which(net_J_Res[Matched_Morphemes_Serial_Numbers, 10]=="文語連体形")] # “らしき”
           Pots_C_X_J[[1]]<-sort(unique(c(b, c)))
           Pots_C_X_J[[2]]<-d_2
           Pots_C_X_J[[3]]<-d_1
@@ -388,7 +399,7 @@ fun_MAV_for_Text<-function(x){
       }
       # XIV_そうだ（様態）& XV_そうだ（伝聞）
       if(1){
-        Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="そうだ"&J_Res[, 6]=="形容詞性述語接尾辞"|J_Res[, 8]=="助動詞そうだ型")%>%fun_limit(jn)
+        Matched_Morphemes_Serial_Numbers<-which(net_J_Res[, 3]=="そうだ"&net_J_Res[, 6]=="形容詞性述語接尾辞"|net_J_Res[, 8]=="助動詞そうだ型")# %>%fun_limit(jn)
         Pots_C_XIV_J<-list(0, 0, 0, 0, 0, 0)
         Pots_C_XV_J<-list(0, 0, 0, 0, 0)
         #振り分け(第一段階)
@@ -449,7 +460,7 @@ fun_MAV_for_Text<-function(x){
     if(1){
       ## 1_"しめる"
       if(1){
-        Matched_Morphemes_Serial_Numbers<-which(J_Res[, 3]=="しめる" & J_Res[, 4]=="接尾辞")%>%fun_limit(jn)
+        Matched_Morphemes_Serial_Numbers<-which(net_J_Res[, 3]=="しめる" & net_J_Res[, 4]=="接尾辞")# %>%fun_limit(jn)
         Pots_L_1_J<-list(0, 0, 0, 0, 0, 0)
         if(1){
           # extra
@@ -458,7 +469,7 @@ fun_MAV_for_Text<-function(x){
           extra_pos<-NULL
           if(extra!=0){
             extra_pos_temp<-which(str_detect(M_Res[,1], "^[足た]ら$"))+1
-            extra_pos<-extra_pos_temp[which(M_Res[extra_pos_temp, 1]=="しめ")]%>%fun_limit(jn)
+            extra_pos<-extra_pos_temp[which(M_Res[extra_pos_temp, 1]=="しめ")]%>%fun_limit(mn)
           }
         }
         Matched_Morphemes_Serial_Numbers<-unique(c(Matched_Morphemes_Serial_Numbers, extra_pos))
@@ -935,10 +946,11 @@ fun_MAV_for_Text<-function(x){
               res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
               cat(i, "末词素相同。\n")
             }else{
-              if(any(current_J_start_pos < StartChar_per_Mmorpheme & current_J_end_pos > EndChar_per_Mmorpheme)){
+              if(any(StartChar_per_Mmorpheme > current_J_start_pos & EndChar_per_Mmorpheme < current_J_end_pos)){
                 # ■■■■■ J
                 #  ■■■  M
-                temp_matched<-which(current_J_start_pos < StartChar_per_Mmorpheme & current_J_end_pos >EndChar_per_Mmorpheme)
+                temp_matched<-which(StartChar_per_Mmorpheme > current_J_start_pos & EndChar_per_Mmorpheme < current_J_end_pos)
+                temp_matched<-which(current_J_start_pos < StartChar_per_Mmorpheme & current_J_end_pos > EndChar_per_Mmorpheme)
                 len_temp_matched<-length(temp_matched)
                 res2compact[[1]]<-c(res2compact[[1]], temp_matched[len_temp_matched]+1)
                 res2compact[[2]]<-rbind(res2compact[[2]], c("助動詞", paste("助動詞", HIT_J$基本形[i], sep="_"), paste("助動詞", HIT_J$活用形种类[i], sep="_")))
