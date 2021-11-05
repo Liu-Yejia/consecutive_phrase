@@ -11,7 +11,7 @@ fun_fusion_PrefixOrSuffix_and_Noun<-function(x, mode="M", target="Pre")
         nc<-length(x)
 	Ore<-rbind(x, y)#rbind后的待处理矩阵（2行15列）
         Res<-rep("", nc)#最终输出的结果
-        Simple_combine<-c(1:3)
+        Simple_Combine<-c(1:3)
         # Simple_Combine<-c(1:3, 14, 15)#简单结合
         Keep_the_Latter<-c(4:11)#仅保留后者
         # Padding_Combine<-13#中间插入自定义分隔符后结合
