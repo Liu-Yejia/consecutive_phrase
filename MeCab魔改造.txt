@@ -181,7 +181,7 @@ Analytic_MeCab_429<-function(input){
         matched<-suspects[which(x[suspects+1, 8]=="がる")]
         if(length(matched)!=0){
           x[matched+1, 1]<-paste0("や_", x[matched+1, 1])
-          x[matched, 1]<-"无"
+          x[matched,1]<-"无"
         }
         rm(list=c("suspects", "matched"))
       }
@@ -221,21 +221,26 @@ Analytic_MeCab_429<-function(input){
             matched<-suspects[which(x[suspects-1, 2]=="名詞")]
             len_matched<-length(matched)
             if(len_matched!=0){
+              suspects<-setdiff(suspects, matched)
               for(i in 1:len_matched){
-                x[matched[i]-1, c(1, 9, 10)]<-fun_glue(x[(matched[i]-1):matched[i], c(1, 9, 10)], 2, sep="_")
-                x[matched[i], 1]<-"无"
+                # old_x<-x
+                x[matched[i]-1, c(1, 9, 10)]<-
+                  fun_glue(x[(matched[i]-1):matched[i], c(1, 9, 10)], 2, sep="_")
+                x[matched[i],]<-"无"
               }
               rm(list=c("matched", "len_matched"))
             }
+            
           }
           # case 2 +名詞
           if(1){
             matched<-suspects[which(x[suspects+1, 2]=="名詞")]
             len_matched<-length(matched)
             if(len_matched!=0){
+              suspects<-setdiff(suspects, matched)
               for(i in 1:len_matched){
                 x[matched[i]+1, c(1, 9, 10)]<-fun_glue(x[matched[i]:(matched[i]+1), c(1, 9, 10)], 2, sep="_")
-                x[matched[i], 1]<-"无"
+                x[matched[i],]<-"无"
               }
             }
             rm(list=c("matched", "len_matched"))
@@ -247,6 +252,7 @@ Analytic_MeCab_429<-function(input){
                                       x[suspects+1, 8]=="れる")]
             len_matched<-length(matched)
             if(len_matched!=0){
+              suspects<-setdiff(suspects, matched)
               x[matched, 7]<-"未然形"
             }
             rm(list=c("matched", "len_matched"))
@@ -257,11 +263,12 @@ Analytic_MeCab_429<-function(input){
                                       x[suspects+1, 3]=="自立")]
             len_matched<-length(matched)
             if(len_matched!=0){
+              suspects<-setdiff(suspects, matched)
               for(i in 1:len_matched){
                 x[matched[i]+1, 1]<-paste(x[matched[i], 1],
                                           x[matched[i]+1, 1],
                                           sep="_")
-                x[matched[i], 1]<-"无"
+                x[matched[i],]<-"无"
               }
               rm(list=c("matched", "len_matched"))
             }
@@ -272,12 +279,13 @@ Analytic_MeCab_429<-function(input){
                                       x[suspects-1, 3]=="名詞接続")]
             len_matched<-length(matched)
             if(len_matched!=0){
+              suspects<-setdiff(suspects, matched)
               for(i in 1:len_matched){
                 x[matched[i]-1, 1]<-paste(x[matched[i]-1, 1],
                                           x[matched[i],   1], sep="_")
                 x[matched[i]-1, 2]<-"名詞"
                 x[matched[i]-1, 3]<-"一般"
-                x[matched[i],   1]<-"无"
+                x[matched[i],]<-"无"
               }
             }
             rm(list=c("matched", "len_matched"))
@@ -288,6 +296,7 @@ Analytic_MeCab_429<-function(input){
                                     x[suspects+1, 3]=="接尾")]
             len_matched<-length(matched)
             if(len_matched!=0){
+              suspects<-setdiff(suspects, matched)
               x[matched, 7]<-"未然形"
             }
             rm(list=c("matched", "len_matched"))
@@ -306,7 +315,7 @@ Analytic_MeCab_429<-function(input){
           if(len_matched!=0){
             for(i in 1:len_matched){
               x[matched[i]-1, c(1, 9, 10)]<-fun_glue(x[(matched[i]-1):matched[i], c(1, 9, 10)], 2, sep="_")
-              x[matched[i], 1]<-"无"
+              x[matched[i],]<-"无"
             }
             rm(list=c("matched", "len_matched"))
           }
@@ -375,13 +384,13 @@ Analytic_MeCab_429<-function(input){
       return(x)
     }
     Call_MeCab<-function(input){
-      #input<-Rebuilt_Parts[i]
-      #pseudo_input<-paste0("！", input)
-      #command_M<-paste("echo", pseudo_input, "| mecab -b 5242880")
+      # input<-Rebuilt_Parts[i]
+      # pseudo_input<-paste0("！", input)
+      # command_M<-paste("echo", pseudo_input, "| mecab -b 5242880")
       command_M<-paste("echo", input, "| mecab -b 5242880")
       res_M<-system(command_M, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_replace_all("\\t",",")%>%str_split_fixed(pattern=",",10)
-      #res_M<-res_M%>%fun_rough_merge()
-      #res_M<-res_M[-1,]
+      # res_M<-res_M%>%fun_rough_merge()
+      # res_M<-res_M[-1,]
       return(res_M)
     }
   }#自作関数群
