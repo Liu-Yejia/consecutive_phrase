@@ -1,0 +1,83 @@
+fun_fuse_to_frequencies<-function(x, m){
+  # x为1list对象，内含n条向量。（假想应用场景：n为作品数）
+  # x<-Sentence_pattern
+  # m<-1
+  n<-length(x)
+  zxl<-NULL # 总向量
+  for(i in 1:n){
+    # zxl<-c(zxl, x[[i]][[m]])
+    zxl<-c(zxl, x[[i]][, m])
+  }
+  zxl<-unique(zxl)
+  result_matrix<-matrix(0, n, length(zxl))
+  colnames(result_matrix)<-zxl
+  for(j in 1:n){
+    # tab<-table(x[[j]][[m]])
+    tab<-table(x[[j]][, m])
+    result_matrix[j, which(zxl%in%names(tab))]<-tab
+    cat(j, "\n")
+  }
+  return(result_matrix)
+}
+fun_fragment_formation<-function(material, n=1){
+  # material 为某句话对应的3阶矩阵，n 为自目标词素（助詞/記号）向前夺取的词素数，默认为1。
+  target_pos<-which(str_detect(material[, 1], "[、。\u3040-\u309F]")) # 该句中“助词”与“记号”的行编号。
+  len_target_pos<-target_pos%>%length # the length of target_pos.
+  if(len_target_pos==0){
+    return(NULL)
+  }else{
+    target_pos_first_morphemes<-target_pos-n
+    target_pos_next_morpheme<-target_pos+n
+    res_matrix<-matrix("", len_target_pos, 3)
+    for(i in 1:len_target_pos){
+      res_matrix[i,]<-material[target_pos_first_morphemes[i]:target_pos[i], ]%>%fun_glue(2, "/+/")
+    }
+  }
+  # if(len_target!=1){res_matrix<-res_matrix%>%fun_glue(2, “==+==“)}
+  return(res_matrix)
+}
+fun_chain<-function(X){
+  len_X<-nrow(X)
+  v_1<-character()
+  v_2<-character()
+  v_3<-character()
+  V<-data.frame(v_1, v_2, v_3)
+  if(len_X==1){
+    V[1, ]<-X
+  }else{
+    a<-(1:nrow(X))%>%combn(2)%>%t
+    a<-a[which((a[,2]-a[,1])==1),] # となりあう二個の要素（任意の形態素かタグと、直後の助詞か記号）の連なりに絞り込む仕様となる。
+    if(is.null(nrow(a))){
+      a<-t(as.matrix(a))  
+    }
+    for(i in 1:nrow(a)){
+      V[i,]<-X[a[i,],]%>%fun_glue(2, "==")
+    }
+  }
+  return(V)
+}
+fun_glue<-function(x,direction=1,sep="//"){
+  if(is.null(dim(x))){
+    len<-length(x)
+    total<-x[1]
+    for(i in 2:len){
+      total<-paste(total,x[i],sep=sep)
+    }
+  }else{
+    dimen<-switch(direction,
+                  "1"=ncol(x),
+                  "2"=nrow(x))
+    if(direction==1){
+      total<-x[,1]
+      for(i in 2:dimen){
+        total<-str_c(total, x[,i], sep=sep)
+      }
+    }else{
+      total<-x[1,]
+      for(i in 2:dimen){
+        total<-str_c(total, x[i,], sep=sep)
+      }
+    }
+  }
+  return(total)
+}
