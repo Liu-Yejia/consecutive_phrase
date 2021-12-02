@@ -1,5 +1,31 @@
 fun_fuse_to_frequencies<-function(x, m){
   # x为1list对象，内含n条向量。（假想应用场景：n为作品数）
+  n<-length(x)
+  zxl<-NULL # 总向量
+  for(i in 1:n){
+    # zxl<-c(zxl, x[[i]][[m]])
+    zxl<-c(zxl, x[[i]][, m])
+  }
+  zxl<-unique(zxl)
+  result_matrix<-matrix(0, n, length(zxl))
+  colnames(result_matrix)<-zxl
+  for(j in 1:n){
+    # tab<-table(x[[j]][[m]])
+    tab<-table(x[[j]][, m])
+    nam<-names(tab)
+    order_vec<-NULL
+    for(k in nam){
+      order_vec<-c(order_vec, which(zxl==k))
+    }
+    # result_matrix[j, which(zxl%in%names(tab))]<-tab
+    result_matrix[j, order_vec]<-tab
+    cat(j, "\n")
+  }
+  return(result_matrix)
+}
+
+fun_fuse_to_frequencies<-function(x, m){
+  # x为1list对象，内含n条向量。（假想应用场景：n为作品数）
   # x<-Sentence_pattern
   # m<-1
   n<-length(x)
