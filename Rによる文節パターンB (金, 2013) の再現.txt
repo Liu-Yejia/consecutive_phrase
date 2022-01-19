@@ -1,0 +1,82 @@
+fun_InVec_adhere<-function(vec, sep="_"){
+  library(stringr)
+  len<-length(vec)
+  if(len>=2){
+    res<-vec[1]
+    for(i in 2:len){
+      if(vec[i]!=""){
+        res<-str_c(res, vec[i], sep=sep)
+      }else{
+        break
+      }
+    }
+  }else{
+    res<-vec
+  }
+  return(res)
+}
+
+
+fun_cabocha<-function(input)
+  {
+  library(stringr)
+  input<-chartr(old="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&()", new="０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ＆（）", input)
+  command<-paste("echo", input, "| cabocha")
+  completed<-command%>%system(intern=TRUE)%>%str_replace_all(" +", "")%>%
+    str_replace_all("-+.+$", "")
+  return(completed[-length(completed)])
+  #num_phrase_patterns<-length(completed)
+}
+
+imp_nrow<-function(x){
+  if(!is.null(nrow(x))){
+    return(nrow(x))
+  }else{
+    return(1)
+  }
+}
+
+fun_BSPattern_reproduction_improvement<-function(x, mode="M")
+{
+  #既存の文節パターンＢ特徴量ベクトルを再現。
+  #对象x为MeCab或Juman++的词素解析结果（矩阵，前者10列，后者16列）
+  #参数mode用来指定对象x为MeCab还是Juman++的词素解析结果。
+  nr<-nrow(x)#先数对象x有几行
+  SupCo<-ifelse(mode=="M", 2, 4)#上位概念（Superordinate Concept）的缩写，即词素品词大分类所在列序号
+  SubCo<-ifelse(mode=="M", 3, 6)#下位概念（Subordinate Concept）的缩写，即词素品词小分类所在列序号
+  cut_tail<-F
+  if(is.null(nr)){
+    x<-rbind(x, rep("", 10))  
+  }
+  Surface_chain<-x[, 1]
+  SupCo_Chain<-x[, SupCo]
+  Sup_Sub_Chain<-str_c(x[, SupCo], x[, SubCo], sep="_")
+  Sueoki_1<-which(str_detect(SupCo_Chain, "^(助詞|記号)$"))#変数名の通り，表層形態素のままで（据え置き）
+  Sueoki_2<-which(str_detect(Sup_Sub_Chain, "^(名詞_非自立|連体詞_\\*|助動詞_\\*)$"))
+  Sueoki<-union(Sueoki_1, Sueoki_2)
+  SupCo_Chain[Sueoki]<-Surface_chain[Sueoki]
+  res<-fun_InVec_adhere(SupCo_Chain, sep="_")
+  return(res)
+}
+
+Call_MeCab_simple<-function(input)
+{
+  #input<-Rebuilt_Parts[i]
+  pseudo_input<-paste0("！", input)
+  #pseudo_input
+  command_M<-paste("echo", pseudo_input, "| mecab -b 5242880")
+  res_M<-system(command_M, intern=TRUE)%>%str_subset("^(?!EOS)")%>%str_replace_all("\\t",",")%>%str_split_fixed(pattern=",",10)
+  #res_M<-res_M%>%fun_rough_merge()
+  res_M<-res_M[-1,]
+  return(res_M)
+}
+
+x <- "FNNまとめによると、18日、全国で、新型コロナウイルスに感染していることが確認されたのは、3万2196人にのぼった（確定値）。全国の感染者数としては過去最多で、初めて3万人を超えた。これまでに最も多かったのは、去年8月20日の2万5990人だった。"
+
+pool <- x %>% fun_cabocha
+for(i in 1:length(pool)){
+  pool[i]<-pool[i] %>% Call_MeCab_simple %>% fun_BSPattern_reproduction_improvement
+}
+pool
+
+
